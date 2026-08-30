@@ -1,6 +1,7 @@
 import type { StateConfigMap } from '../engine/types';
 
-// Three example states, chosen to cover distinct shapes of requirement:
+// Three fully-worked example states, chosen to cover distinct shapes of
+// requirement:
 //   CA — high minimums, requires UM/UIM, has extra disclosures (incl. SR-22)
 //   MI — no-fault state, no UM/UIM requirement, no extra disclosures
 //   TX — plain baseline state, nothing special
@@ -27,5 +28,24 @@ export const STATE_CONFIG: StateConfigMap = {
     noFault: false,
     costOfLivingFactor: 1.0,
     extraDisclosures: [],
+  },
+
+  // --- PLACEHOLDERS ---------------------------------------------------
+  // Stubbed so the demo can show a 5-state picker without committing to
+  // real numbers yet. TODO: replace every value below before relying on
+  // these — they are NOT researched, just shaped like a real entry.
+  NY: {
+    minimums: { bodilyInjuryPerPerson: 0, bodilyInjuryPerAccident: 0, propertyDamage: 0 }, // TODO
+    requiresUMUIM: false, // TODO
+    noFault: true, // TODO: confirm — NY is generally a no-fault state
+    costOfLivingFactor: 1.0, // TODO
+    extraDisclosures: [], // TODO
+  },
+  FL: {
+    minimums: { bodilyInjuryPerPerson: 0, bodilyInjuryPerAccident: 0, propertyDamage: 0 }, // TODO
+    requiresUMUIM: false, // TODO
+    noFault: true, // TODO: confirm — FL is generally a no-fault state
+    costOfLivingFactor: 1.0, // TODO
+    extraDisclosures: [], // TODO
   },
 };

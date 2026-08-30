@@ -107,3 +107,12 @@ export const QUESTIONS: QuestionNode[] = [
     condition: (_a, ctx) => Boolean(ctx.stateConfig?.extraDisclosures.includes('sr22_disclosure')),
   },
 ];
+
+// --- PLACEHOLDERS -----------------------------------------------------
+// Not wired into QUESTIONS yet — parked here as a reminder of known gaps
+// in the sample flow, called out but not resolved in the spec:
+//   - VIN as an alternative to year/make/model entry
+//   - Prior carrier name (only lapse status/duration are asked today)
+//   - Homeowner/renter status (sometimes a rating factor, not in spec sample)
+// TODO: flesh these out and splice into QUESTIONS when the flow expands
+// past the sample set.
