@@ -17,13 +17,35 @@ function useFlowContext(answers: Answers): FlowContext {
   }, [answers]);
 }
 
+// Drop every answer from `id` onward, so that node becomes the next
+// question asked again. Used by both "Back" (id = the last-answered node)
+// and "jump to this question" from the overview panel.
+function truncateAt(answers: Answers, id: string): Answers {
+  const cutIndex = QUESTIONS.findIndex((q) => q.id === id);
+  if (cutIndex === -1) return answers;
+  const kept: Answers = {};
+  for (let i = 0; i < cutIndex; i++) {
+    const q = QUESTIONS[i];
+    if (q.id in answers) kept[q.id] = answers[q.id];
+  }
+  return kept;
+}
+
+function formatValue(v: unknown): string {
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  return String(v);
+}
+
 export default function App() {
   const [answers, setAnswers] = useState<Answers>({});
   const [draft, setDraft] = useState<string>('');
+  const [showOverview, setShowOverview] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const ctx = useFlowContext(answers);
-  const { node } = getNextStep(QUESTIONS, answers, ctx);
+  const { node, skippedIds } = getNextStep(QUESTIONS, answers, ctx);
 
-  const answered = QUESTIONS.filter((q) => q.id in answers).length;
+  const answeredIds = QUESTIONS.filter((q) => q.id in answers).map((q) => q.id);
+  const answeredCount = answeredIds.length;
 
   function commit(value: unknown) {
     if (!node) return;
@@ -31,10 +53,82 @@ export default function App() {
     setDraft('');
   }
 
+  function goBack() {
+    if (answeredIds.length === 0) return;
+    const lastId = answeredIds[answeredIds.length - 1];
+    setAnswers((prev) => truncateAt(prev, lastId));
+    setDraft('');
+  }
+
+  function jumpTo(id: string) {
+    setAnswers((prev) => truncateAt(prev, id));
+    setDraft('');
+    setShowOverview(false);
+  }
+
+  function resetAll() {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      return;
+    }
+    setAnswers({});
+    setDraft('');
+    setConfirmReset(false);
+    setShowOverview(false);
+  }
+
+  const topBar = (
+    <div className="top-bar">
+      <button className="link-button" onClick={goBack} disabled={answeredCount === 0}>
+        ← Back
+      </button>
+      <button className="link-button" onClick={() => setShowOverview((s) => !s)}>
+        {showOverview ? 'Hide question list' : 'Show question list'}
+      </button>
+      <button className="link-button danger" onClick={resetAll}>
+        {confirmReset ? 'Click again to confirm' : 'Start over'}
+      </button>
+    </div>
+  );
+
+  const overviewPanel = showOverview && (
+    <div className="overview">
+      {QUESTIONS.map((q) => {
+        const isAnswered = q.id in answers;
+        const isSkippedSoFar = !isAnswered && q.condition && !q.condition(answers, ctx);
+        const isCurrent = node?.id === q.id;
+        return (
+          <div
+            key={q.id}
+            className={`overview-row${isCurrent ? ' current' : ''}${isSkippedSoFar ? ' skipped' : ''}`}
+          >
+            <span className="overview-prompt">{q.prompt}</span>
+            {isAnswered ? (
+              <>
+                <span className="overview-status">{formatValue(answers[q.id])}</span>
+                <button className="link-button" onClick={() => jumpTo(q.id)}>
+                  Edit
+                </button>
+              </>
+            ) : isSkippedSoFar ? (
+              <span className="overview-status muted">Not needed (so far)</span>
+            ) : isCurrent ? (
+              <span className="overview-status">Up next</span>
+            ) : (
+              <span className="overview-status muted">Not reached yet</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   if (!node) {
     const xml = compileXml(QUESTIONS, answers, ctx);
     return (
       <div className="shell">
+        {topBar}
+        {overviewPanel}
         <h1>All done</h1>
         <p>Here's the handoff document that would go downstream:</p>
         <pre className="xml-output">{xml}</pre>
@@ -51,21 +145,24 @@ export default function App() {
         >
           Download XML
         </button>
-        <button onClick={() => setAnswers({})}>Start over</button>
       </div>
     );
   }
 
   return (
     <div className="shell">
-      <div className="progress">{answered + 1} of ~{QUESTIONS.length}</div>
+      {topBar}
+      {overviewPanel}
+      <div className="progress">{answeredCount + 1} of ~{QUESTIONS.length}</div>
       <h1>{node.prompt}</h1>
       {node.helpText && <p className="help">{node.helpText}</p>}
 
       {node.type === 'location' && (
         <div className="location-confirm">
           <p>
-            {ctx.city ? `${ctx.city}, ${ctx.state}` : 'ZIP not recognized in this demo — enter manually below.'}
+            {ctx.city
+              ? `${ctx.city}, ${ctx.state}`
+              : 'ZIP not recognized in this demo — enter manually below.'}
           </p>
           <label>
             City
@@ -118,6 +215,12 @@ export default function App() {
             </button>
           ))}
         </div>
+      )}
+
+      {skippedIds.length > 0 && (
+        <p className="skip-note">
+          (skipped so far: {skippedIds.join(', ')})
+        </p>
       )}
     </div>
   );
