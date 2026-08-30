@@ -103,7 +103,8 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'stateDisclosures',
     type: 'boolean',
     prompt: 'Does your state require an SR-22 filing for you?',
-    helpText: 'Shown because your state config lists an SR-22 disclosure.',
+    helpText:
+      "An SR-22 isn't insurance itself — it's a certificate your insurer files with the state proving you carry at least the state's minimum coverage. States typically require it after things like a DUI, an at-fault accident while uninsured, or a license suspension.",
     condition: (_a, ctx) => Boolean(ctx.stateConfig?.extraDisclosures.includes('sr22_disclosure')),
   },
 ];
