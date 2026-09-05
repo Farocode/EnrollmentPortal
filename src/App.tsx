@@ -190,6 +190,12 @@ export default function App() {
     commit(node.type === 'number' ? Number(draft) : draft);
   }
 
+  const siteHeader = (
+    <header className="site-header">
+      <img src="/header-clearpath.png" alt="ClearPath Insurance" className="site-header-logo" />
+    </header>
+  );
+
   const topBar = (
     <div className="top-bar">
       <button className="link-button" onClick={goBack} disabled={answeredCount === 0}>
@@ -246,7 +252,9 @@ export default function App() {
   if (!node) {
     const xml = compileXml(QUESTIONS, answers, ctx);
     return (
-      <div className="shell">
+      <>
+        {siteHeader}
+        <div className="shell">
         {topBar}
         {overviewPanel}
         <h1>All done</h1>
@@ -267,7 +275,8 @@ export default function App() {
         >
           Download XML
         </button>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -280,7 +289,9 @@ export default function App() {
     (node.fields ?? []).every((f) => !f.required || (fieldGroupDraft[f.id] ?? '').trim() !== '');
 
   return (
-    <div className="shell">
+    <>
+      {siteHeader}
+      <div className="shell">
       {topBar}
       {overviewPanel}
       <div className="progress">{answeredCount + 1} of ~{QUESTIONS.length}</div>
@@ -497,6 +508,7 @@ export default function App() {
           (skipped so far: {skippedIds.join(', ')})
         </p>
       )}
-    </div>
+      </div>
+    </>
   );
 }
