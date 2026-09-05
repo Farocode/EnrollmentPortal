@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import './App.css';
+import headerLogo from './assets/header-clearpath.png';
 import { QUESTIONS } from './data/questions';
 import { STATE_CONFIG } from './data/stateConfig';
 import { lookupZip } from './data/zipLookup';
@@ -192,7 +193,7 @@ export default function App() {
 
   const siteHeader = (
     <header className="site-header">
-      <img src="/header-clearpath.png" alt="ClearPath Insurance" className="site-header-logo" />
+      <img src={headerLogo} alt="ClearPath Insurance" className="site-header-logo" />
     </header>
   );
 
