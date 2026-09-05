@@ -7,7 +7,7 @@ import { getNextStep } from './engine/flowEngine';
 import { compileXml } from './engine/xmlCompiler';
 import { highlightXml } from './engine/xmlHighlight';
 import { DateSegmentedInput } from './components/DateSegmentedInput';
-import { stripToPattern, titleCase } from './engine/validators';
+import { stripToPattern } from './engine/validators';
 import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
 
 function useFlowContext(answers: Answers): FlowContext {
@@ -307,8 +307,8 @@ export default function App() {
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
-              onChange={(e) => setLocationDraft((prev) => ({ ...prev, city: titleCase(e.target.value) }))}
-              onBlur={(e) => setLocationDraft((prev) => ({ ...prev, city: titleCase(e.target.value) }))}
+              onChange={(e) => setLocationDraft((prev) => ({ ...prev, city: e.target.value.toUpperCase() }))}
+              onBlur={(e) => setLocationDraft((prev) => ({ ...prev, city: e.target.value.toUpperCase() }))}
             />
           </label>
           <label>
