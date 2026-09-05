@@ -121,8 +121,14 @@ button {
   border-radius: 6px;
 }
 .xml-output code {
+  display: block; /* override the global `code { display: inline-flex }` reset,
+                      which was flexing every highlighted span onto one row
+                      and hiding the newlines behind horizontal scroll */
   text-align: left;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: none;
+  padding: 0;
 }
 .xml-tag { color: #9333ea; font-weight: 600; }
 .xml-attr { color: #b45309; }
@@ -192,6 +198,22 @@ button {
   color: #999;
 }
 .repeating-add-form select {
+  padding: 0.5rem;
+  font-size: 0.95rem;
+}
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+}
+.field-group label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  gap: 0.25rem;
+}
+.field-group select {
   padding: 0.5rem;
   font-size: 0.95rem;
 }

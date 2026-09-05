@@ -50,6 +50,15 @@ export function compileXml(nodes: QuestionNode[], answers: Answers, ctx: FlowCon
         .join('\n');
       return `    <question id="${esc(n.id)}">\n${entries}\n    </question>`;
     }
+    // A fieldGroup answer (e.g. name split into First/Middle/Last/Suffix)
+    // is a single plain object — its fields nest directly under the
+    // question, with no <entry> wrapper (there's only ever one).
+    if (value && typeof value === 'object') {
+      const fields = Object.entries(value as Record<string, unknown>)
+        .map(([k, v]) => `      <${esc(k)}>${esc(v)}</${esc(k)}>`)
+        .join('\n');
+      return `    <question id="${esc(n.id)}">\n${fields}\n    </question>`;
+    }
     return `    <question id="${esc(n.id)}">${esc(value)}</question>`;
   };
 

@@ -7,6 +7,7 @@ import { getNextStep } from './engine/flowEngine';
 import { compileXml } from './engine/xmlCompiler';
 import { highlightXml } from './engine/xmlHighlight';
 import { DateSegmentedInput } from './components/DateSegmentedInput';
+import { stripToPattern, titleCase } from './engine/validators';
 import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
 
 function useFlowContext(answers: Answers): FlowContext {
@@ -56,6 +57,24 @@ function formatEntryField(field: RepeatingFieldDef, value: string): string {
 
 type RepeatingEntry = Record<string, string>;
 
+// A fresh entry/fieldGroup draft with every declared subfield present (even
+// as ''), so the compiled XML always includes every field the schema
+// declares rather than only the ones the user happened to touch.
+function emptyEntry(fields?: RepeatingFieldDef[]): RepeatingEntry {
+  return Object.fromEntries((fields ?? []).map((f) => [f.id, '']));
+}
+
+// Shared per-subfield transform for repeatingGroup entries and fieldGroup
+// fields alike: strip disallowed characters, force-uppercase, then clamp
+// length — same order used for top-level text questions.
+function applyFieldTransform(field: RepeatingFieldDef, raw: string): string {
+  let v = raw;
+  if (field.charPattern) v = stripToPattern(v, field.charPattern);
+  if (field.uppercase) v = v.toUpperCase();
+  if (field.maxLength) v = v.slice(0, field.maxLength);
+  return v;
+}
+
 export default function App() {
   const [answers, setAnswers] = useState<Answers>({});
   const [draft, setDraft] = useState<string>('');
@@ -68,17 +87,31 @@ export default function App() {
   const [groupDraft, setGroupDraft] = useState<RepeatingEntry>({});
   const [showAddForm, setShowAddForm] = useState(false);
 
+  // fieldGroup-only local state (one fixed entry, no add/remove)
+  const [fieldGroupDraft, setFieldGroupDraft] = useState<RepeatingEntry>({});
+
+  // location-only local state — controlled inputs so the live capitalization
+  // transforms actually show as you type (defaultValue wouldn't reflect it)
+  const [locationDraft, setLocationDraft] = useState<{ city: string; state: string }>({ city: '', state: '' });
+
   const ctx = useFlowContext(answers);
   const { node, skippedIds } = getNextStep(QUESTIONS, answers, ctx);
 
-  // Reset the repeating-group scratch state whenever we land on a fresh
-  // (or re-edited) repeatingGroup node.
+  // Reset the repeating-group / fieldGroup / location scratch state
+  // whenever we land on a fresh (or re-edited) node of that type.
   useEffect(() => {
     if (node?.type === 'repeatingGroup') {
       setGroupEntries([]);
-      setGroupDraft({});
+      setGroupDraft(emptyEntry(node.fields));
       setShowAddForm(false);
     }
+    if (node?.type === 'fieldGroup') {
+      setFieldGroupDraft(emptyEntry(node.fields));
+    }
+    if (node?.type === 'location') {
+      setLocationDraft({ city: ctx.city ?? '', state: ctx.state ?? '' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node?.id]);
 
   const answeredIds = QUESTIONS.filter((q) => q.id in answers).map((q) => q.id);
@@ -130,8 +163,18 @@ export default function App() {
   }
 
   function handleGroupFieldChange(field: RepeatingFieldDef, raw: string) {
-    const v = field.uppercase ? raw.toUpperCase() : raw;
-    setGroupDraft((prev) => ({ ...prev, [field.id]: v }));
+    setGroupDraft((prev) => ({ ...prev, [field.id]: applyFieldTransform(field, raw) }));
+  }
+
+  function handleFieldGroupChange(field: RepeatingFieldDef, raw: string) {
+    setFieldGroupDraft((prev) => ({ ...prev, [field.id]: applyFieldTransform(field, raw) }));
+  }
+
+  function confirmLocation() {
+    if (!node) return;
+    setAnswers((prev) => ({ ...prev, city: locationDraft.city, state: locationDraft.state, [node.id]: true }));
+    setDraft('');
+    setError(null);
   }
 
   function submitDraft() {
@@ -167,6 +210,13 @@ export default function App() {
         const isAnswered = q.id in answers;
         const isSkippedSoFar = !isAnswered && q.condition && !q.condition(answers, ctx);
         const isCurrent = node?.id === q.id;
+        const displayValue =
+          q.type === 'fieldGroup' && q.fields
+            ? q.fields
+                .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
+                .filter(Boolean)
+                .join(' ')
+            : formatValue(answers[q.id]);
         return (
           <div
             key={q.id}
@@ -175,7 +225,7 @@ export default function App() {
             <span className="overview-prompt">{q.prompt}</span>
             {isAnswered ? (
               <>
-                <span className="overview-status">{formatValue(answers[q.id])}</span>
+                <span className="overview-status">{displayValue}</span>
                 <button className="link-button" onClick={() => jumpTo(q.id)}>
                   Edit
                 </button>
@@ -225,6 +275,10 @@ export default function App() {
     node.type === 'repeatingGroup' &&
     (node.fields ?? []).every((f) => !f.required || (groupDraft[f.id] ?? '').trim() !== '');
 
+  const fieldGroupComplete =
+    node.type === 'fieldGroup' &&
+    (node.fields ?? []).every((f) => !f.required || (fieldGroupDraft[f.id] ?? '').trim() !== '');
+
   return (
     <div className="shell">
       {topBar}
@@ -234,7 +288,13 @@ export default function App() {
       {node.helpText && <p className="help">{node.helpText}</p>}
 
       {node.type === 'location' && (
-        <div className="location-confirm">
+        <form
+          className="location-confirm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            confirmLocation();
+          }}
+        >
           <p>
             {ctx.city
               ? `${ctx.city}, ${ctx.state}`
@@ -243,19 +303,20 @@ export default function App() {
           <label>
             City
             <input
-              defaultValue={ctx.city ?? ''}
-              onChange={(e) => setAnswers((prev) => ({ ...prev, city: e.target.value }))}
+              value={locationDraft.city}
+              onChange={(e) => setLocationDraft((prev) => ({ ...prev, city: titleCase(e.target.value) }))}
             />
           </label>
           <label>
             State
             <input
-              defaultValue={ctx.state ?? ''}
-              onChange={(e) => setAnswers((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
+              value={locationDraft.state}
+              maxLength={2}
+              onChange={(e) => setLocationDraft((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
             />
           </label>
-          <button onClick={() => commit(true)}>Looks right</button>
-        </div>
+          <button type="submit">Looks right</button>
+        </form>
       )}
 
       {(node.type === 'text' || node.type === 'number') && (
@@ -269,11 +330,46 @@ export default function App() {
             autoFocus
             type={node.type === 'number' ? 'number' : 'text'}
             maxLength={node.maxLength}
+            placeholder={node.placeholder}
             value={draft}
             onChange={(e) => handleDraftChange(e.target.value)}
           />
           <button type="submit">Next</button>
         </form>
+      )}
+
+      {node.type === 'fieldGroup' && (
+        <div className="field-group">
+          {node.fields?.map((f) => (
+            <label key={f.id}>
+              {f.label}
+              {f.type === 'select' ? (
+                <select
+                  value={fieldGroupDraft[f.id] ?? ''}
+                  onChange={(e) => handleFieldGroupChange(f, e.target.value)}
+                >
+                  {f.options?.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  maxLength={f.maxLength}
+                  value={fieldGroupDraft[f.id] ?? ''}
+                  onChange={(e) => handleFieldGroupChange(f, e.target.value)}
+                />
+              )}
+            </label>
+          ))}
+          <div className="button-row">
+            <button disabled={!fieldGroupComplete} onClick={() => commit(fieldGroupDraft)}>
+              Next
+            </button>
+          </div>
+        </div>
       )}
       {error && <p className="field-error">{error}</p>}
 
@@ -361,7 +457,7 @@ export default function App() {
                   disabled={!groupFieldsComplete}
                   onClick={() => {
                     setGroupEntries((prev) => [...prev, groupDraft]);
-                    setGroupDraft({});
+                    setGroupDraft(emptyEntry(node.fields));
                     setShowAddForm(false);
                   }}
                 >
@@ -370,7 +466,7 @@ export default function App() {
                 <button
                   className="link-button"
                   onClick={() => {
-                    setGroupDraft({});
+                    setGroupDraft(emptyEntry(node.fields));
                     setShowAddForm(false);
                   }}
                 >

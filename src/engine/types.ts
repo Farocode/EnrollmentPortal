@@ -23,7 +23,7 @@ export interface FlowContext {
   stateConfig?: StateConfig;
 }
 
-export type FieldType = 'text' | 'number' | 'boolean' | 'select' | 'location' | 'repeatingGroup';
+export type FieldType = 'text' | 'number' | 'boolean' | 'select' | 'location' | 'repeatingGroup' | 'fieldGroup';
 
 export interface SelectOption {
   value: string;
@@ -33,7 +33,8 @@ export interface SelectOption {
 export type Section = 'applicant' | 'vehicle' | 'coverage' | 'stateDisclosures';
 
 // A subfield inside a repeatingGroup entry (e.g. one household driver's
-// First name / Last name / Date of birth).
+// First name / Last name / Date of birth) or a fieldGroup's fixed set of
+// fields (e.g. First / Middle / Last / Suffix name split).
 export type RepeatingFieldType = 'text' | 'date' | 'select';
 
 export interface RepeatingFieldDef {
@@ -43,6 +44,8 @@ export interface RepeatingFieldDef {
   required?: boolean;
   options?: SelectOption[]; // 'select' only
   uppercase?: boolean; // 'text' only — force-uppercase as typed
+  maxLength?: number; // 'text' only
+  charPattern?: RegExp; // 'text' only — disallowed characters are stripped as typed
 }
 
 export interface QuestionNode {
@@ -76,8 +79,15 @@ export interface QuestionNode {
   format?: (raw: string) => string;
   // Force-uppercase as typed (applied before `format`, if both are set).
   uppercase?: boolean;
+  // Shown as grey placeholder text inside an empty input, e.g. a format hint.
+  placeholder?: string;
 
-  // --- repeatingGroup only ---
+  // --- repeatingGroup / fieldGroup only ---
+  // repeatingGroup: a list of entries the user can add/remove, each shaped
+  // by these fields (e.g. household drivers). Answer stored as an array.
+  // fieldGroup: one fixed entry's worth of fields shown together on a
+  // single screen (e.g. First/Middle/Last/Suffix). Answer stored as a
+  // plain object, not an array.
   fields?: RepeatingFieldDef[];
 }
 

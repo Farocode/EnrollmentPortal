@@ -12,6 +12,12 @@ export function stripToPattern(value: string, pattern: RegExp): string {
     .join('');
 }
 
+// "los angeles" -> "Los Angeles". Good enough for a city name typed as
+// lowercase; doesn't special-case things like "McDonald" or "O'Brien".
+export function titleCase(value: string): string {
+  return value.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 export function validateEmail(value: string): string | null {
   // Simple, not exhaustive RFC 5322 — good enough to catch obvious typos.
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
