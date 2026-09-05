@@ -32,13 +32,31 @@ export function compileXml(nodes: QuestionNode[], answers: Answers, ctx: FlowCon
   };
   for (const n of nodes) bySection[n.section].push(n);
 
+  // A repeatingGroup answer (e.g. household drivers) is an array of
+  // entries rather than a scalar — render each as a nested <entry>, empty
+  // array still renders as an answered (not skipped) self-closing tag.
+  const renderQuestion = (n: QuestionNode): string => {
+    if (skipped.has(n.id)) return `    <question id="${esc(n.id)}" skipped="true"/>`;
+    const value = answers[n.id];
+    if (Array.isArray(value)) {
+      if (value.length === 0) return `    <question id="${esc(n.id)}"/>`;
+      const entries = value
+        .map((item, idx) => {
+          const fields = Object.entries(item as Record<string, unknown>)
+            .map(([k, v]) => `        <${esc(k)}>${esc(v)}</${esc(k)}>`)
+            .join('\n');
+          return `      <entry index="${idx}">\n${fields}\n      </entry>`;
+        })
+        .join('\n');
+      return `    <question id="${esc(n.id)}">\n${entries}\n    </question>`;
+    }
+    return `    <question id="${esc(n.id)}">${esc(value)}</question>`;
+  };
+
   const renderSection = (section: Section, nodeList: QuestionNode[]): string => {
     const lines = nodeList
       .filter((n) => n.id in answers || skipped.has(n.id))
-      .map((n) => {
-        if (skipped.has(n.id)) return `    <question id="${esc(n.id)}" skipped="true"/>`;
-        return `    <question id="${esc(n.id)}">${esc(answers[n.id])}</question>`;
-      });
+      .map(renderQuestion);
     if (lines.length === 0) return `  <${section}/>`;
     return `  <${section}>\n${lines.join('\n')}\n  </${section}>`;
   };

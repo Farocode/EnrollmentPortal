@@ -1,4 +1,6 @@
 import type { QuestionNode } from '../engine/types';
+import { NAME_CHAR, ADDRESS_CHAR, validateEmail, formatPhone, validatePhone, validateVehicleYear } from '../engine/validators';
+import { VEHICLE_MAKES } from './vehicleMakes';
 
 // Sample flow from the spec, in default order. The engine walks this array
 // and skips any node whose condition evaluates false — that's how the
@@ -8,14 +10,67 @@ import type { QuestionNode } from '../engine/types';
 export const QUESTIONS: QuestionNode[] = [
   { id: 'zip', section: 'applicant', type: 'text', prompt: "What's your ZIP code?" },
   { id: 'location', section: 'applicant', type: 'location', prompt: 'Is this right?' },
-  { id: 'fullName', section: 'applicant', type: 'text', prompt: "What's your full name?" },
-  { id: 'phone', section: 'applicant', type: 'text', prompt: "What's the best phone number to reach you?" },
-  { id: 'email', section: 'applicant', type: 'text', prompt: "What's your email address?" },
-  { id: 'address', section: 'applicant', type: 'text', prompt: "What's your street address?" },
+  {
+    id: 'fullName',
+    section: 'applicant',
+    type: 'text',
+    prompt: "What's your full name?",
+    charPattern: NAME_CHAR,
+    maxLength: 100,
+  },
+  {
+    id: 'phone',
+    section: 'applicant',
+    type: 'text',
+    prompt: "What's the best phone number to reach you?",
+    format: formatPhone,
+    validate: validatePhone,
+  },
+  {
+    id: 'email',
+    section: 'applicant',
+    type: 'text',
+    prompt: "What's your email address?",
+    maxLength: 254,
+    validate: validateEmail,
+  },
+  {
+    id: 'address',
+    section: 'applicant',
+    type: 'text',
+    prompt: "What's your street address?",
+    charPattern: ADDRESS_CHAR,
+    maxLength: 100,
+  },
+  {
+    id: 'householdDrivers',
+    section: 'applicant',
+    type: 'repeatingGroup',
+    prompt: 'Does anyone else in your household drive, or drive this car regularly?',
+    helpText: "Add each person — we just need their name and date of birth for now. It's fine to add none.",
+    required: false,
+    fields: [
+      { id: 'firstName', label: 'First name', type: 'text', required: true },
+      { id: 'lastName', label: 'Last name', type: 'text', required: true },
+      { id: 'dob', label: 'Date of birth', type: 'date', required: true },
+    ],
+  },
 
-  { id: 'vehicleYear', section: 'vehicle', type: 'number', prompt: 'What year is your vehicle?' },
-  { id: 'vehicleMake', section: 'vehicle', type: 'text', prompt: 'What make?' },
-  { id: 'vehicleModel', section: 'vehicle', type: 'text', prompt: 'What model?' },
+  {
+    id: 'vehicleYear',
+    section: 'vehicle',
+    type: 'number',
+    prompt: 'What year is your vehicle?',
+    validate: validateVehicleYear,
+  },
+  {
+    id: 'vehicleMake',
+    section: 'vehicle',
+    type: 'select',
+    prompt: 'What make?',
+    options: VEHICLE_MAKES,
+  },
+  { id: 'vehicleModel', section: 'vehicle', type: 'text', prompt: 'What model?', maxLength: 60 },
   {
     id: 'parkingLocation',
     section: 'vehicle',
