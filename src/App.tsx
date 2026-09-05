@@ -304,7 +304,11 @@ export default function App() {
             City
             <input
               value={locationDraft.city}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => setLocationDraft((prev) => ({ ...prev, city: titleCase(e.target.value) }))}
+              onBlur={(e) => setLocationDraft((prev) => ({ ...prev, city: titleCase(e.target.value) }))}
             />
           </label>
           <label>
@@ -312,7 +316,11 @@ export default function App() {
             <input
               value={locationDraft.state}
               maxLength={2}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(e) => setLocationDraft((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
+              onBlur={(e) => setLocationDraft((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
             />
           </label>
           <button type="submit">Looks right</button>
