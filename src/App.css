@@ -114,8 +114,22 @@ button {
   background: #f4f4f4;
   padding: 1rem;
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 480px;
   font-size: 0.85rem;
+  text-align: left;
+  border-radius: 6px;
 }
+.xml-output code {
+  text-align: left;
+  white-space: pre;
+}
+.xml-tag { color: #9333ea; font-weight: 600; }
+.xml-attr { color: #b45309; }
+.xml-attrval { color: #047857; }
+.xml-punc { color: #999; }
+.xml-decl { color: #999; font-style: italic; }
+.xml-text { color: #1f2937; }
 .field-error {
   color: #a4262c;
   font-size: 0.85rem;
@@ -154,4 +168,30 @@ button {
   flex-direction: column;
   font-size: 0.85rem;
   gap: 0.25rem;
+}
+.repeating-heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #444;
+  margin: 0;
+}
+.date-segmented {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.date-segmented input {
+  width: 3.2rem;
+  text-align: center;
+  padding: 0.4rem;
+}
+.date-segmented input:last-child {
+  width: 4.4rem;
+}
+.date-segmented span {
+  color: #999;
+}
+.repeating-add-form select {
+  padding: 0.5rem;
+  font-size: 0.95rem;
 }

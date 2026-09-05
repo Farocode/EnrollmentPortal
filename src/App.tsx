@@ -5,7 +5,9 @@ import { STATE_CONFIG } from './data/stateConfig';
 import { lookupZip } from './data/zipLookup';
 import { getNextStep } from './engine/flowEngine';
 import { compileXml } from './engine/xmlCompiler';
-import type { Answers, FlowContext } from './engine/types';
+import { highlightXml } from './engine/xmlHighlight';
+import { DateSegmentedInput } from './components/DateSegmentedInput';
+import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
 
 function useFlowContext(answers: Answers): FlowContext {
   return useMemo(() => {
@@ -35,6 +37,21 @@ function formatValue(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (Array.isArray(v)) return v.length === 0 ? 'None added' : `${v.length} added`;
   return String(v);
+}
+
+// Friendly display for one subfield of a repeating-group entry (used on
+// the summary card) — dates render as MM/DD/YYYY instead of raw ISO, and
+// select values render their label instead of their stored value.
+function formatEntryField(field: RepeatingFieldDef, value: string): string {
+  if (!value) return '';
+  if (field.type === 'date') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (m) return `${m[2]}/${m[3]}/${m[1]}`;
+  }
+  if (field.type === 'select') {
+    return field.options?.find((o) => o.value === value)?.label ?? value;
+  }
+  return value;
 }
 
 type RepeatingEntry = Record<string, string>;
@@ -105,10 +122,16 @@ export default function App() {
     if (!node) return;
     let v = raw;
     if (node.charPattern) v = v.split('').filter((ch) => node.charPattern!.test(ch)).join('');
+    if (node.uppercase) v = v.toUpperCase();
     if (node.maxLength) v = v.slice(0, node.maxLength);
     if (node.format) v = node.format(v);
     setDraft(v);
     setError(null);
+  }
+
+  function handleGroupFieldChange(field: RepeatingFieldDef, raw: string) {
+    const v = field.uppercase ? raw.toUpperCase() : raw;
+    setGroupDraft((prev) => ({ ...prev, [field.id]: v }));
   }
 
   function submitDraft() {
@@ -178,7 +201,9 @@ export default function App() {
         {overviewPanel}
         <h1>All done</h1>
         <p>Here's the handoff document that would go downstream:</p>
-        <pre className="xml-output">{xml}</pre>
+        <pre className="xml-output">
+          <code dangerouslySetInnerHTML={{ __html: highlightXml(xml) }} />
+        </pre>
         <button
           onClick={() => {
             const blob = new Blob([xml], { type: 'application/xml' });
@@ -271,12 +296,17 @@ export default function App() {
 
       {node.type === 'repeatingGroup' && (
         <div className="repeating-group">
-          {groupEntries.length > 0 && (
+          <h3 className="repeating-heading">Household members added</h3>
+
+          {groupEntries.length > 0 ? (
             <div className="repeating-entries">
               {groupEntries.map((entry, idx) => (
                 <div key={idx} className="repeating-entry-card">
                   <span>
-                    {node.fields?.map((f) => entry[f.id]).filter(Boolean).join(' — ')}
+                    {node.fields
+                      ?.map((f) => formatEntryField(f, entry[f.id]))
+                      .filter(Boolean)
+                      .join(' — ')}
                   </span>
                   <button
                     className="link-button"
@@ -287,6 +317,8 @@ export default function App() {
                 </div>
               ))}
             </div>
+          ) : (
+            !showAddForm && <p className="help">None added yet.</p>
           )}
 
           {showAddForm ? (
@@ -294,11 +326,34 @@ export default function App() {
               {node.fields?.map((f) => (
                 <label key={f.id}>
                   {f.label}
-                  <input
-                    type={f.type === 'date' ? 'date' : 'text'}
-                    value={groupDraft[f.id] ?? ''}
-                    onChange={(e) => setGroupDraft((prev) => ({ ...prev, [f.id]: e.target.value }))}
-                  />
+                  {f.type === 'date' && (
+                    <DateSegmentedInput
+                      value={groupDraft[f.id] ?? ''}
+                      onChange={(iso) => setGroupDraft((prev) => ({ ...prev, [f.id]: iso }))}
+                    />
+                  )}
+                  {f.type === 'select' && (
+                    <select
+                      value={groupDraft[f.id] ?? ''}
+                      onChange={(e) => handleGroupFieldChange(f, e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Select…
+                      </option>
+                      {f.options?.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {f.type === 'text' && (
+                    <input
+                      type="text"
+                      value={groupDraft[f.id] ?? ''}
+                      onChange={(e) => handleGroupFieldChange(f, e.target.value)}
+                    />
+                  )}
                 </label>
               ))}
               <div className="button-row">

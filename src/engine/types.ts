@@ -34,13 +34,15 @@ export type Section = 'applicant' | 'vehicle' | 'coverage' | 'stateDisclosures';
 
 // A subfield inside a repeatingGroup entry (e.g. one household driver's
 // First name / Last name / Date of birth).
-export type RepeatingFieldType = 'text' | 'date';
+export type RepeatingFieldType = 'text' | 'date' | 'select';
 
 export interface RepeatingFieldDef {
   id: string;
   label: string;
   type: RepeatingFieldType;
   required?: boolean;
+  options?: SelectOption[]; // 'select' only
+  uppercase?: boolean; // 'text' only — force-uppercase as typed
 }
 
 export interface QuestionNode {
@@ -72,6 +74,8 @@ export interface QuestionNode {
   // Transforms raw typed input into the displayed value, e.g. phone
   // number auto-formatting to 000-000-0000 as digits are typed.
   format?: (raw: string) => string;
+  // Force-uppercase as typed (applied before `format`, if both are set).
+  uppercase?: boolean;
 
   // --- repeatingGroup only ---
   fields?: RepeatingFieldDef[];
