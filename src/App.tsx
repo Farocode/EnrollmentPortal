@@ -3,7 +3,7 @@ import './App.css';
 import headerLogo from './assets/header-clearpath.png';
 import { QUESTIONS } from './data/questions';
 import { STATE_CONFIG } from './data/stateConfig';
-import { lookupZip } from './data/zipLookup';
+import { resolveZip, type ZipLocation } from './data/zipLookup';
 import { getNextStep } from './engine/flowEngine';
 import { compileXml } from './engine/xmlCompiler';
 import { highlightXml } from './engine/xmlHighlight';
@@ -11,14 +11,26 @@ import { DateSegmentedInput } from './components/DateSegmentedInput';
 import { stripToPattern } from './engine/validators';
 import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
 
-function useFlowContext(answers: Answers): FlowContext {
+// resolveZip() is async (a real API call), so the lookup result lives in
+// its own bit of state rather than being derived synchronously the way it
+// was against the old hardcoded table. `zip` on this record is which ZIP
+// the status/result belongs to, so a still-in-flight request for a ZIP the
+// user has since changed can be told apart from the current one.
+type ZipStatus = 'idle' | 'loading' | 'done' | 'notfound' | 'error';
+interface ZipResolution {
+  zip: string;
+  status: ZipStatus;
+  result: ZipLocation | null;
+}
+
+function useFlowContext(answers: Answers, zipRes: ZipResolution): FlowContext {
   return useMemo(() => {
     const zip = typeof answers.zip === 'string' ? answers.zip : '';
-    const loc = zip ? lookupZip(zip) : null;
-    const state = (answers.state as string | undefined) ?? loc?.state;
-    const city = (answers.city as string | undefined) ?? loc?.city;
+    const resolved = zip && zipRes.zip === zip && zipRes.status === 'done' ? zipRes.result : null;
+    const state = (answers.state as string | undefined) ?? resolved?.state;
+    const city = (answers.city as string | undefined) ?? resolved?.city;
     return { state, city, stateConfig: state ? STATE_CONFIG[state] : undefined };
-  }, [answers]);
+  }, [answers, zipRes]);
 }
 
 // Drop every answer from `id` onward, so that node becomes the next
@@ -95,8 +107,38 @@ export default function App() {
   // transforms actually show as you type (defaultValue wouldn't reflect it)
   const [locationDraft, setLocationDraft] = useState<{ city: string; state: string }>({ city: '', state: '' });
 
-  const ctx = useFlowContext(answers);
+  // ZIP -> city/state lookup, now a real (async) API call instead of a
+  // synchronous table read — see useFlowContext above.
+  const [zipRes, setZipRes] = useState<ZipResolution>({ zip: '', status: 'idle', result: null });
+
+  const ctx = useFlowContext(answers, zipRes);
   const { node, skippedIds } = getNextStep(QUESTIONS, answers, ctx);
+
+  // Kick off the ZIP lookup whenever the answered ZIP changes. Guarded by
+  // `cancelled` so a stale response (user went Back and re-answered a
+  // different ZIP before the first call returned) never overwrites a newer
+  // one.
+  useEffect(() => {
+    const zip = typeof answers.zip === 'string' ? answers.zip.trim() : '';
+    if (!zip) {
+      setZipRes({ zip: '', status: 'idle', result: null });
+      return;
+    }
+    let cancelled = false;
+    setZipRes({ zip, status: 'loading', result: null });
+    resolveZip(zip)
+      .then((result) => {
+        if (cancelled) return;
+        setZipRes({ zip, status: result ? 'done' : 'notfound', result });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setZipRes({ zip, status: 'error', result: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [answers.zip]);
 
   // Reset the repeating-group / fieldGroup / location scratch state
   // whenever we land on a fresh (or re-edited) node of that type.
@@ -114,6 +156,21 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node?.id]);
+
+  // The ZIP lookup often resolves *after* the location screen is already
+  // showing (real network round-trip vs. the old instant table read) — once
+  // it comes in, fill the draft in too, but only if the user hasn't already
+  // started typing over it.
+  useEffect(() => {
+    if (node?.type !== 'location') return;
+    if (zipRes.status !== 'done' || !zipRes.result) return;
+    if (zipRes.zip !== answers.zip) return;
+    setLocationDraft((prev) =>
+      prev.city === '' && prev.state === ''
+        ? { city: zipRes.result!.city.toUpperCase(), state: zipRes.result!.state }
+        : prev
+    );
+  }, [zipRes, node?.type, answers.zip]);
 
   const answeredIds = QUESTIONS.filter((q) => q.id in answers).map((q) => q.id);
   const answeredCount = answeredIds.length;
@@ -308,9 +365,13 @@ export default function App() {
           }}
         >
           <p>
-            {ctx.city
+            {zipRes.status === 'loading' && zipRes.zip === answers.zip
+              ? 'Looking that up…'
+              : zipRes.status === 'error' && zipRes.zip === answers.zip
+              ? "Couldn't reach the ZIP lookup service — enter manually below."
+              : ctx.city
               ? `${ctx.city}, ${ctx.state}`
-              : 'ZIP not recognized in this demo — enter manually below.'}
+              : 'ZIP not recognized — enter manually below.'}
           </p>
           <label>
             City
