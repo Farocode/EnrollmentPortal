@@ -383,15 +383,27 @@ export default function App() {
 
   // Same spirit as the header's trust badges — set dressing for the
   // "ClearPath Insurance" placeholder brand (explicitly a stand-in, not a
-  // real company). Nav links are non-navigating by design (no routes
-  // exist for them); legal copy is generic boilerplate-flavored text, not
+  // real company). Legal copy is generic boilerplate-flavored text, not
   // modeled on any real insurer's actual disclosures.
+  //
+  // Our Story / About / Jobs now go somewhere real instead of being dead
+  // `href="#"` links — plain static HTML pages in `public/` (not part of
+  // the React app/router, there isn't one), opened with target="_blank"
+  // so the app itself is never navigated away from or lost. Support /
+  // Privacy Policy / Terms of Use are still dead-end stubs; no content
+  // was asked for those yet.
   const siteFooter = (
     <footer className="site-footer">
       <nav className="site-footer-nav" aria-label="Footer">
-        <a href="#" onClick={(e) => e.preventDefault()}>Our Story</a>
-        <a href="#" onClick={(e) => e.preventDefault()}>About ClearPath</a>
-        <a href="#" onClick={(e) => e.preventDefault()}>Jobs at ClearPath</a>
+        <a href={`${import.meta.env.BASE_URL}our-story.html`} target="_blank" rel="noopener noreferrer">
+          Our Story
+        </a>
+        <a href={`${import.meta.env.BASE_URL}about.html`} target="_blank" rel="noopener noreferrer">
+          About ClearPath
+        </a>
+        <a href={`${import.meta.env.BASE_URL}jobs.html`} target="_blank" rel="noopener noreferrer">
+          Jobs at ClearPath
+        </a>
         <a href="#" onClick={(e) => e.preventDefault()}>Support</a>
         <a href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
         <a href="#" onClick={(e) => e.preventDefault()}>Terms of Use</a>

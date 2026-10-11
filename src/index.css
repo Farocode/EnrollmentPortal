@@ -11,6 +11,17 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* XML syntax-highlight colors (see .xml-tag etc. in App.css) — split out
+     as their own vars, light defaults here, dark overrides below, same
+     pattern as --accent and friends. .xml-text in particular (plain text
+     content) was a hardcoded dark navy that went invisible against the
+     dark --code-bg before this split. */
+  --xml-tag: #9333ea;
+  --xml-attr: #b45309;
+  --xml-attrval: #047857;
+  --xml-punc: #999;
+  --xml-text: #1f2937;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -48,6 +59,11 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --xml-tag: #c084fc;
+    --xml-attr: #fbbf24;
+    --xml-attrval: #34d399;
+    --xml-punc: #9ca3af;
+    --xml-text: #f3f4f6;
   }
 }
 
@@ -63,6 +79,11 @@
   --social-bg: rgba(47, 48, 58, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  --xml-tag: #c084fc;
+  --xml-attr: #fbbf24;
+  --xml-attrval: #34d399;
+  --xml-punc: #9ca3af;
+  --xml-text: #f3f4f6;
 }
 
 /* `color-scheme: light dark` on :root (above) is what lets a *system*

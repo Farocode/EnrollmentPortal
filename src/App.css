@@ -467,7 +467,10 @@ button:not(.link-button):disabled {
   gap: 0.25rem;
 }
 .xml-output {
-  background: #f4f4f4;
+  /* Was a hardcoded #f4f4f4 — stayed a flat, bright light-gray box in dark
+     mode instead of following theme, same class of bug already fixed once
+     for the sidebar/toggle (see index.css for the --code-bg var). */
+  background: var(--code-bg);
   padding: 1rem;
   overflow-x: auto;
   overflow-y: auto;
@@ -486,12 +489,18 @@ button:not(.link-button):disabled {
   background: none;
   padding: 0;
 }
-.xml-tag { color: #9333ea; font-weight: 600; }
-.xml-attr { color: #b45309; }
-.xml-attrval { color: #047857; }
-.xml-punc { color: #999; }
-.xml-decl { color: #999; font-style: italic; }
-.xml-text { color: #1f2937; }
+/* Syntax-highlight colors were also hardcoded hex, tuned only for a light
+   background — most held up fine against the dark --code-bg once that was
+   fixed, but .xml-text (plain text content, e.g. an answer value) was dark
+   navy on dark navy — effectively invisible in dark mode. All five now
+   pull from theme-aware custom properties (index.css) instead, same
+   light/dark-pair pattern already used for --accent etc. */
+.xml-tag { color: var(--xml-tag); font-weight: 600; }
+.xml-attr { color: var(--xml-attr); }
+.xml-attrval { color: var(--xml-attrval); }
+.xml-punc { color: var(--xml-punc); }
+.xml-decl { color: var(--xml-punc); font-style: italic; }
+.xml-text { color: var(--xml-text); }
 .field-error {
   color: #a4262c;
   font-size: 0.85rem;
