@@ -72,17 +72,33 @@
 }
 /* A little flair so the single combined entry point still reads as "the
    support thing" at a glance rather than blending into ordinary buttons —
-   a soft glow plus a subtle pulse, nothing that distracts once noticed. */
+   a soft glow plus a subtle pulse, nothing that distracts once noticed.
+   Solid accent fill rather than the usual light accent-bg tint: the ✨
+   emoji's sparkles render in fixed light colors (white/pale yellow) that
+   the light theme's near-white accent-bg washed out almost completely.
+   A solid, dark-enough background keeps them visible in both themes. */
 .support-fab-highlight {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
-  color: var(--accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
   font-weight: 600;
   box-shadow: var(--shadow), 0 0 0 3px var(--accent-bg);
   animation: support-fab-pulse 2.8s ease-in-out infinite;
 }
 .support-fab-highlight.active {
   animation: none;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+/* Keep the solid fill on hover too — the generic
+   `button:not(.link-button):hover` rule (App.css, global button styles)
+   would otherwise win on specificity and flip it back to the pale
+   accent-bg tint this fix exists to avoid. */
+button.support-fab-highlight:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 @keyframes support-fab-pulse {
   0%, 100% {
