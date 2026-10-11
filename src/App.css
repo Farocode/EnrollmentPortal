@@ -47,9 +47,9 @@
   font-size: 0.72rem;
 }
 
-/* Floating support widgets (fake Live Chat / AI Assistant) — fixed
-   bottom-right, above everything else on the page including the progress
-   sidebar's own z-index (20) and its toggle (30). */
+/* Floating support widget (fake, AI-labeled, all-in-one site + account
+   support) — fixed bottom-right, above everything else on the page
+   including the progress sidebar's own z-index (20) and its toggle (30). */
 .support-widget {
   position: fixed;
   right: 1rem;
@@ -60,12 +60,6 @@
   align-items: flex-end;
   gap: 0.6rem;
 }
-.support-fab-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-end;
-}
 .support-fab {
   border-radius: 999px;
   padding: 0.6rem 1rem;
@@ -75,6 +69,28 @@
 .support-fab.active {
   background: var(--accent-bg);
   border-color: var(--accent-border);
+}
+/* A little flair so the single combined entry point still reads as "the
+   support thing" at a glance rather than blending into ordinary buttons —
+   a soft glow plus a subtle pulse, nothing that distracts once noticed. */
+.support-fab-highlight {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow), 0 0 0 3px var(--accent-bg);
+  animation: support-fab-pulse 2.8s ease-in-out infinite;
+}
+.support-fab-highlight.active {
+  animation: none;
+}
+@keyframes support-fab-pulse {
+  0%, 100% {
+    box-shadow: var(--shadow), 0 0 0 3px var(--accent-bg);
+  }
+  50% {
+    box-shadow: var(--shadow), 0 0 0 6px var(--accent-bg);
+  }
 }
 .support-panel {
   width: 280px;
@@ -131,6 +147,21 @@
 .support-panel-input-row button {
   padding: 0.45rem 0.7rem;
   font-size: 0.85rem;
+}
+/* Deliberately understated and last in the panel — present the way a real
+   escalation option would be (there, but not pushed on you), without
+   actually being wired to anything. */
+.support-panel-escalate {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.9rem 0.8rem;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  font-size: 0.72rem;
+  color: var(--text);
+  text-align: center;
 }
 .top-bar {
   display: flex;

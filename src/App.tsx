@@ -114,25 +114,16 @@ function applyFieldTransform(field: RepeatingFieldDef, raw: string): string {
 // and writes are wrapped since storage can throw or be unavailable (private
 // browsing, blocked site data).
 //
-// Key has a ".v2" suffix: the sidebar used to default to closed, and
-// anyone who'd already toggled it (including during earlier testing) had
-// "closed" sitting in storage under the old key — which silently overrode
-// the new "defaults to open" behavior added later, since that default only
-// applies when nothing is stored yet. Bumping the key means old values
-// are simply never read, so the new default actually takes for everyone.
-const SIDEBAR_STORAGE_KEY = 'enrollmentPortal.sidebarOpen.v2';
-
-function readStoredSidebarOpen(): boolean {
-  try {
-    const raw = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    // Defaults to open: the progress rail is meant to be a persistent
-    // sense-of-place, not a thing people have to discover and turn on.
-    return raw === null ? true : raw === 'true';
-  } catch {
-    return true;
-  }
-}
-
+// This used to persist the user's last toggle choice via localStorage
+// (first under one key, then a ".v2" key after the first attempt at this
+// still carried over an old "closed" value). Dropped entirely: repeated
+// reports made clear the actual expectation is stronger than "remember my
+// last choice" — it's "always open on a fresh load or Start Over", full
+// stop. So there's no stored state to read; sidebarOpen simply starts
+// `true` on every mount, and Start Over re-asserts it below in resetAll()
+// in case the user had closed it mid-session. The toggle still works for
+// that one session — it just never outlives a reload.
+//
 // Manual theme override. 'light'/'dark' pin it regardless of OS setting;
 // null (nothing stored, or the user never touched the switcher) means
 // "follow system preference" — index.css already renders the dark palette
@@ -162,13 +153,17 @@ export default function App() {
   const [answers, setAnswers] = useState<Answers>({});
   const [draft, setDraft] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(readStoredSidebarOpen);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [theme, setTheme] = useState<ThemeChoice>(readStoredTheme);
-  // Fake support widgets — set dressing for the ClearPath placeholder
+  // Fake support widget — set dressing for the ClearPath placeholder
   // brand, same spirit as the trust badges and the footer's dead-end nav
-  // links. 'none' means neither panel is open; opening one closes the
-  // other, like a real chat-widget launcher would.
-  const [activeWidget, setActiveWidget] = useState<'none' | 'chat' | 'ai'>('none');
+  // links. Started as two separate launchers ("AI Assistant" vs. "Live
+  // Chat"), but a real "Live Chat" button next to a real "AI Assistant"
+  // button reads as a promise of a human on the other end — most people
+  // would pick "Live Chat" expecting that, when it's just as scripted as
+  // the other one. Collapsed into one all-in-one support entry point so
+  // there's nothing to be misled by.
+  const [supportWidgetOpen, setSupportWidgetOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
   // repeatingGroup-only local state
@@ -315,16 +310,7 @@ export default function App() {
   }
 
   function toggleSidebar() {
-    setSidebarOpen((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
-      } catch {
-        // best-effort; a viewer with storage blocked just won't have the
-        // open/closed state remembered next visit
-      }
-      return next;
-    });
+    setSidebarOpen((prev) => !prev);
   }
 
   function resetAll() {
@@ -336,6 +322,9 @@ export default function App() {
     setDraft('');
     setError(null);
     setConfirmReset(false);
+    // Start Over is a fresh start in every sense — re-open the sidebar
+    // even if the user had closed it mid-session.
+    setSidebarOpen(true);
   }
 
   function handleDraftChange(raw: string) {
@@ -422,56 +411,51 @@ export default function App() {
   // widget) that open a small static panel — a single canned opening
   // message, a disabled-looking input, no actual send. Nothing behind it
   // is real; it's here purely to round out the "real-looking site" set
-  // dressing started with the header/trust-badges/footer.
+  // dressing started with the header/trust-badges/footer. One entry point
+  // that covers both site help and account support, flagged as AI up
+  // front rather than left ambiguous. The "talk to a person" line at the
+  // bottom is deliberately a dead end, same as the footer links — it's
+  // there because a real version of this would have one, not because
+  // this one connects anywhere.
   const supportWidget = (
     <div className="support-widget">
-      {activeWidget !== 'none' && (
+      {supportWidgetOpen && (
         <div className="support-panel">
           <div className="support-panel-header">
-            <span>{activeWidget === 'chat' ? 'ClearPath Support' : 'ClearPath AI Assistant'}</span>
+            <span>✨ ClearPath Assistant</span>
             <button
               type="button"
               className="support-panel-close"
               aria-label="Close"
-              onClick={() => setActiveWidget('none')}
+              onClick={() => setSupportWidgetOpen(false)}
             >
               ×
             </button>
           </div>
           <div className="support-panel-body">
             <p className="support-message">
-              {activeWidget === 'chat'
-                ? "Hi! Thanks for reaching out to ClearPath Insurance. A representative will be with you shortly."
-                : "Hi, I'm the ClearPath AI Assistant. I can walk you through this application — ask me anything about a question on the page."}
+              Hi, I'm the ClearPath Assistant — an AI, not a person. I can help with questions about this
+              application or your account. Ask me anything on the page.
             </p>
           </div>
-          <form
-            className="support-panel-input-row"
-            onSubmit={(e) => e.preventDefault()}
-          >
+          <form className="support-panel-input-row" onSubmit={(e) => e.preventDefault()}>
             <input type="text" placeholder="Type a message…" disabled />
             <button type="submit" disabled>
               Send
             </button>
           </form>
+          <button type="button" className="support-panel-escalate" disabled>
+            Request a callback from a person
+          </button>
         </div>
       )}
-      <div className="support-fab-row">
-        <button
-          type="button"
-          className={`support-fab${activeWidget === 'ai' ? ' active' : ''}`}
-          onClick={() => setActiveWidget((prev) => (prev === 'ai' ? 'none' : 'ai'))}
-        >
-          🤖 AI Assistant
-        </button>
-        <button
-          type="button"
-          className={`support-fab${activeWidget === 'chat' ? ' active' : ''}`}
-          onClick={() => setActiveWidget((prev) => (prev === 'chat' ? 'none' : 'chat'))}
-        >
-          💬 Live Chat
-        </button>
-      </div>
+      <button
+        type="button"
+        className={`support-fab support-fab-highlight${supportWidgetOpen ? ' active' : ''}`}
+        onClick={() => setSupportWidgetOpen((prev) => !prev)}
+      >
+        ✨ Support
+      </button>
     </div>
   );
 
@@ -490,8 +474,9 @@ export default function App() {
   // "Show question list" inline panel (same underlying per-question status
   // computation, same Edit/jump behavior) with a drawer that overlays the
   // content rather than pushing it down, so the centered single-column
-  // layout is unchanged when the rail is closed. Open/closed state persists
-  // across visits via localStorage (see readStoredSidebarOpen above).
+  // layout is unchanged when the rail is closed. Open/closed state is
+  // in-session only now — always starts open on a fresh load or Start
+  // Over (see the comment above the sidebarOpen state's definition).
   const sidebarToggle = (
     <button
       type="button"
