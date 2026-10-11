@@ -53,6 +53,20 @@ export function validatePhone(value: string): string | null {
 // up with this app's VIN validation rules.
 const MIN_VEHICLE_YEAR = 1981;
 
+// For a household member's date of birth (repeatingGroup 'date' field,
+// stored/typed as an ISO yyyy-mm-dd string via DateSegmentedInput). Nothing
+// else constrains this field today, so a driver could be entered with a
+// birthdate in the future.
+export function validateNotFutureDate(value: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null; // incomplete/malformed — required-field check handles emptiness
+  const entered = new Date(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (entered.getTime() > today.getTime()) return "Date of birth can't be in the future";
+  return null;
+}
+
 export function validateVehicleYear(value: string): string | null {
   const year = Number(value);
   const now = new Date().getFullYear();

@@ -1,5 +1,5 @@
 import type { QuestionNode } from '../engine/types';
-import { NAME_CHAR, ADDRESS_CHAR, validateEmail, formatPhone, validatePhone, validateVehicleYear } from '../engine/validators';
+import { NAME_CHAR, ADDRESS_CHAR, validateEmail, formatPhone, validatePhone, validateVehicleYear, validateNotFutureDate } from '../engine/validators';
 import { VEHICLE_MAKES } from './vehicleMakes';
 
 // Sample flow from the spec, in default order. The engine walks this array
@@ -37,21 +37,62 @@ export const QUESTIONS: QuestionNode[] = [
     ],
   },
   {
-    id: 'phone',
+    id: 'applicantDetails',
     section: 'applicant',
-    type: 'text',
-    prompt: "What's the best phone number to reach you?",
-    placeholder: '000-000-0000',
-    format: formatPhone,
-    validate: validatePhone,
+    type: 'fieldGroup',
+    prompt: 'A little about you',
+    helpText: 'Used to pull a credit-based insurance score and verify identity on real applications — kept light here.',
+    fields: [
+      {
+        id: 'gender',
+        label: 'Gender',
+        type: 'select',
+        required: false,
+        options: [
+          { value: 'male', label: 'Male' },
+          { value: 'female', label: 'Female' },
+          { value: 'other', label: 'Other' },
+        ],
+      },
+      {
+        id: 'maritalStatus',
+        label: 'Marital status',
+        type: 'select',
+        required: true,
+        options: [
+          { value: 'single', label: 'Single' },
+          { value: 'married', label: 'Married' },
+          { value: 'domesticPartnership', label: 'Domestic partnership' },
+          { value: 'divorced', label: 'Divorced' },
+          { value: 'widowed', label: 'Widowed' },
+        ],
+      },
+      { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateNotFutureDate },
+    ],
   },
   {
-    id: 'email',
+    // Phone + email grouped into one card rather than two atomic
+    // questions — the UX-backlog "card-based grouping" idea, scoped to
+    // exactly what the spec named as its example ("a phone card"). Reuses
+    // the same formatPhone/validatePhone/validateEmail hooks the two
+    // separate questions used before, now wired through
+    // RepeatingFieldDef's `format`/`validate` instead of QuestionNode's.
+    id: 'contactInfo',
     section: 'applicant',
-    type: 'text',
-    prompt: "What's your email address?",
-    maxLength: 254,
-    validate: validateEmail,
+    type: 'fieldGroup',
+    prompt: "What's the best way to reach you?",
+    fields: [
+      {
+        id: 'phone',
+        label: 'Phone number',
+        type: 'text',
+        required: true,
+        placeholder: '000-000-0000',
+        format: formatPhone,
+        validate: validatePhone,
+      },
+      { id: 'email', label: 'Email address', type: 'text', required: true, maxLength: 254, validate: validateEmail },
+    ],
   },
   {
     id: 'address',
@@ -61,6 +102,19 @@ export const QUESTIONS: QuestionNode[] = [
     charPattern: ADDRESS_CHAR,
     maxLength: 100,
     uppercase: true,
+  },
+  {
+    id: 'homeOwnership',
+    section: 'applicant',
+    type: 'select',
+    prompt: 'Do you own or rent your home?',
+    helpText: 'Homeowners (including condo owners) often qualify for a bundling discount.',
+    options: [
+      { value: 'own_home', label: 'Own a home' },
+      { value: 'own_condo', label: 'Own a condo' },
+      { value: 'rent', label: 'Rent' },
+      { value: 'other', label: 'Other' },
+    ],
   },
   {
     id: 'householdDrivers',
@@ -99,7 +153,7 @@ export const QUESTIONS: QuestionNode[] = [
           { value: 'other', label: 'Other' },
         ],
       },
-      { id: 'dob', label: 'Date of birth', type: 'date', required: true },
+      { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateNotFutureDate },
     ],
   },
 
@@ -119,6 +173,17 @@ export const QUESTIONS: QuestionNode[] = [
   },
   { id: 'vehicleModel', section: 'vehicle', type: 'text', prompt: 'What model?', maxLength: 60, uppercase: true },
   {
+    id: 'vehicleOwnership',
+    section: 'vehicle',
+    type: 'select',
+    prompt: "What's your ownership status on the vehicle?",
+    options: [
+      { value: 'owned', label: 'Owned outright' },
+      { value: 'financed', label: 'Financed' },
+      { value: 'leased', label: 'Leased' },
+    ],
+  },
+  {
     id: 'parkingLocation',
     section: 'vehicle',
     type: 'select',
@@ -137,6 +202,23 @@ export const QUESTIONS: QuestionNode[] = [
     condition: (a) => a.parkingLocation === 'street',
     uppercase: true,
   },
+  {
+    id: 'garagedAtHome',
+    section: 'vehicle',
+    type: 'boolean',
+    prompt: 'Is the vehicle kept overnight at the address you gave earlier?',
+    helpText: 'Garaging location affects rates via local accident/theft statistics — only asked separately when it differs from your own address.',
+  },
+  {
+    id: 'garageAddress',
+    section: 'vehicle',
+    type: 'text',
+    prompt: "What's the address where it's actually kept?",
+    condition: (a) => a.garagedAtHome === false,
+    charPattern: ADDRESS_CHAR,
+    maxLength: 100,
+    uppercase: true,
+  },
 
   {
     id: 'annualMileage',
@@ -144,6 +226,12 @@ export const QUESTIONS: QuestionNode[] = [
     type: 'number',
     prompt: 'About how many miles do you drive per year?',
     helpText: "Not sure? Rough guide: under 7,500 is light, around 12,000 is the national average, 12,000–15,000 is heavier use, and 15,000+ often means rideshare/delivery or other commercial driving.",
+    // People habitually type thousands separators here ("12,000") — let
+    // them. Stripped back out to a plain number before it's stored/
+    // compiled into XML (see App.tsx submitDraft); re-added with
+    // toLocaleString() wherever the stored number is displayed, so the
+    // front end always shows it comma-grouped the way they'd expect.
+    charPattern: /[0-9,]/,
   },
   {
     id: 'lowMileageDiscount',

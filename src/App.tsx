@@ -64,6 +64,10 @@ function truncateAt(answers: Answers, id: string): Answers {
 function formatValue(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (Array.isArray(v)) return v.length === 0 ? 'None added' : `${v.length} added`;
+  // Numbers (e.g. annual mileage) are stored plain, comma-free, for XML —
+  // re-add thousands separators for display so it reads the way the user
+  // typed it.
+  if (typeof v === 'number') return v.toLocaleString();
   return String(v);
 }
 
@@ -99,6 +103,7 @@ function applyFieldTransform(field: RepeatingFieldDef, raw: string): string {
   if (field.charPattern) v = stripToPattern(v, field.charPattern);
   if (field.uppercase) v = v.toUpperCase();
   if (field.maxLength) v = v.slice(0, field.maxLength);
+  if (field.format) v = field.format(v);
   return v;
 }
 
@@ -112,7 +117,34 @@ const SIDEBAR_STORAGE_KEY = 'enrollmentPortal.sidebarOpen';
 function readStoredSidebarOpen(): boolean {
   try {
     const raw = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    return raw === null ? false : raw === 'true';
+    // Defaults to open: the progress rail is meant to be a persistent
+    // sense-of-place, not a thing people have to discover and turn on.
+    return raw === null ? true : raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+// Manual theme override. 'light'/'dark' pin it regardless of OS setting;
+// null (nothing stored, or the user never touched the switcher) means
+// "follow system preference" — index.css already renders the dark palette
+// under @media (prefers-color-scheme: dark) for that case, so null needs
+// no [data-theme] attribute applied at all.
+type ThemeChoice = 'light' | 'dark' | null;
+const THEME_STORAGE_KEY = 'enrollmentPortal.theme';
+
+function readStoredTheme(): ThemeChoice {
+  try {
+    const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return raw === 'light' || raw === 'dark' ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function systemPrefersDark(): boolean {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
   } catch {
     return false;
   }
@@ -123,12 +155,20 @@ export default function App() {
   const [draft, setDraft] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(readStoredSidebarOpen);
+  const [theme, setTheme] = useState<ThemeChoice>(readStoredTheme);
   const [confirmReset, setConfirmReset] = useState(false);
 
   // repeatingGroup-only local state
   const [groupEntries, setGroupEntries] = useState<RepeatingEntry[]>([]);
   const [groupDraft, setGroupDraft] = useState<RepeatingEntry>({});
   const [showAddForm, setShowAddForm] = useState(false);
+  // Explicit "I checked, there's nothing to add" for an optional
+  // repeatingGroup (e.g. driving record). Without this, a prompt phrased
+  // as "add any accidents or violations" reads as asking the user to add
+  // something, with no visible signal that pressing Continue with zero
+  // entries is itself a real, deliberate answer — so Continue stays
+  // disabled on an empty list until the user affirms that explicitly.
+  const [noneConfirmed, setNoneConfirmed] = useState(false);
 
   // fieldGroup-only local state (one fixed entry, no add/remove)
   const [fieldGroupDraft, setFieldGroupDraft] = useState<RepeatingEntry>({});
@@ -170,6 +210,31 @@ export default function App() {
     };
   }, [answers.zip]);
 
+  // Apply (or clear) the explicit theme override. Setting the attribute
+  // only when there's a real choice — never for null — means "system
+  // preference" stays purely CSS-driven (index.css's prefers-color-scheme
+  // block), so it keeps tracking a live OS-level change even without a
+  // page reload; only an explicit pick pins it.
+  useEffect(() => {
+    if (theme) document.documentElement.setAttribute('data-theme', theme);
+    else document.documentElement.removeAttribute('data-theme');
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      // First press from "system": flip to the opposite of whatever the OS
+      // is currently showing, so the one press always reads as "switch",
+      // never as "pick the theme I'm already looking at."
+      const next: ThemeChoice = prev ? (prev === 'dark' ? 'light' : 'dark') : systemPrefersDark() ? 'light' : 'dark';
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, next ?? '');
+      } catch {
+        /* per-viewer convenience only — fine if storage is unavailable */
+      }
+      return next;
+    });
+  }
+
   // Reset the repeating-group / fieldGroup / location scratch state
   // whenever we land on a fresh (or re-edited) node of that type.
   useEffect(() => {
@@ -177,6 +242,7 @@ export default function App() {
       setGroupEntries([]);
       setGroupDraft(emptyEntry(node.fields));
       setShowAddForm(false);
+      setNoneConfirmed(false);
     }
     if (node?.type === 'fieldGroup') {
       setFieldGroupDraft(emptyEntry(node.fields));
@@ -257,7 +323,13 @@ export default function App() {
   function handleDraftChange(raw: string) {
     if (!node) return;
     let v = raw;
-    if (node.charPattern) v = v.split('').filter((ch) => node.charPattern!.test(ch)).join('');
+    // type="number" questions switched to a text input (see render below)
+    // so a field like annualMileage can allow typed thousands-separator
+    // commas via its own charPattern. A number node that doesn't declare
+    // one still gets the old digits-only behavior a native number input
+    // enforced, rather than suddenly accepting any character.
+    const pattern = node.charPattern ?? (node.type === 'number' ? /[0-9]/ : undefined);
+    if (pattern) v = v.split('').filter((ch) => pattern.test(ch)).join('');
     if (node.uppercase) v = v.toUpperCase();
     if (node.maxLength) v = v.slice(0, node.maxLength);
     if (node.format) v = node.format(v);
@@ -290,7 +362,10 @@ export default function App() {
         return;
       }
     }
-    commit(node.type === 'number' ? Number(draft) : draft);
+    // Strip any thousands-separator commas the user typed (allowed as-typed
+    // via charPattern, e.g. annualMileage) before storing/compiling — the
+    // stored value and the XML are always a plain number.
+    commit(node.type === 'number' ? Number(draft.replace(/,/g, '')) : draft);
   }
 
   const siteHeader = (
@@ -325,6 +400,23 @@ export default function App() {
       aria-expanded={sidebarOpen}
     >
       {sidebarOpen ? '‹' : '☰'}
+    </button>
+  );
+
+  // Starts on system preference (no stored choice => theme is null => CSS's
+  // prefers-color-scheme block decides) and shows what pressing it will
+  // switch to next, not just the current state, so it reads as a control
+  // rather than a status light.
+  const effectiveDark = theme ? theme === 'dark' : systemPrefersDark();
+  const themeToggle = (
+    <button
+      type="button"
+      className="theme-toggle"
+      onClick={toggleTheme}
+      aria-label={effectiveDark ? 'Switch to light theme' : 'Switch to dark theme'}
+      title={theme ? `Theme: ${theme} (click to switch)` : 'Theme: system default (click to switch)'}
+    >
+      {effectiveDark ? '☀' : '☾'}
     </button>
   );
 
@@ -380,6 +472,7 @@ export default function App() {
       <>
         {siteHeader}
         {sidebarToggle}
+        {themeToggle}
         {progressSidebar}
         <div className="shell">
         {topBar}
@@ -406,13 +499,47 @@ export default function App() {
     );
   }
 
+  // Per-field validation errors for the current repeatingGroup add-form
+  // draft (e.g. a household member's date of birth landing in the
+  // future). Only checked once a field has a value — emptiness is the
+  // `required` check's job, not this one's.
+  const groupDraftErrors: Record<string, string> =
+    node.type === 'repeatingGroup'
+      ? Object.fromEntries(
+          (node.fields ?? [])
+            .map((f): [string, string | null] => {
+              const v = groupDraft[f.id] ?? '';
+              if (!f.validate || v.trim() === '') return [f.id, null];
+              return [f.id, f.validate(v)];
+            })
+            .filter((entry): entry is [string, string] => entry[1] !== null),
+        )
+      : {};
+
   const groupFieldsComplete =
     node.type === 'repeatingGroup' &&
-    (node.fields ?? []).every((f) => !f.required || (groupDraft[f.id] ?? '').trim() !== '');
+    (node.fields ?? []).every((f) => !f.required || (groupDraft[f.id] ?? '').trim() !== '') &&
+    Object.keys(groupDraftErrors).length === 0;
+
+  // Mirrors groupDraftErrors above, for the fieldGroup draft (e.g. the
+  // applicant's own date-of-birth card) instead of a repeatingGroup entry.
+  const fieldGroupDraftErrors: Record<string, string> =
+    node.type === 'fieldGroup'
+      ? Object.fromEntries(
+          (node.fields ?? [])
+            .map((f): [string, string | null] => {
+              const v = fieldGroupDraft[f.id] ?? '';
+              if (!f.validate || v.trim() === '') return [f.id, null];
+              return [f.id, f.validate(v)];
+            })
+            .filter((entry): entry is [string, string] => entry[1] !== null),
+        )
+      : {};
 
   const fieldGroupComplete =
     node.type === 'fieldGroup' &&
-    (node.fields ?? []).every((f) => !f.required || (fieldGroupDraft[f.id] ?? '').trim() !== '');
+    (node.fields ?? []).every((f) => !f.required || (fieldGroupDraft[f.id] ?? '').trim() !== '') &&
+    Object.keys(fieldGroupDraftErrors).length === 0;
 
   // A ZIP that genuinely resolves to more than one place (e.g. Fort
   // Campbell, straddling the KY/TN border) — null unless there's a
@@ -430,6 +557,7 @@ export default function App() {
     <>
       {siteHeader}
       {sidebarToggle}
+      {themeToggle}
       {progressSidebar}
       <div className="shell">
       {topBar}
@@ -505,7 +633,13 @@ export default function App() {
         >
           <input
             autoFocus
-            type={node.type === 'number' ? 'number' : 'text'}
+            // A native type="number" input rejects commas outright, and
+            // this question (annualMileage) wants to allow them as typed —
+            // use text + inputMode so the numeric keyboard still shows on
+            // mobile, while charPattern (set per-node) does the real
+            // character filtering.
+            type="text"
+            inputMode={node.type === 'number' ? 'numeric' : undefined}
             maxLength={node.maxLength}
             placeholder={node.placeholder}
             value={draft}
@@ -520,25 +654,42 @@ export default function App() {
           {node.fields?.map((f) => (
             <label key={f.id}>
               {f.label}
-              {f.type === 'select' ? (
+              {f.type === 'date' && (
+                <DateSegmentedInput
+                  value={fieldGroupDraft[f.id] ?? ''}
+                  onChange={(iso) => setFieldGroupDraft((prev) => ({ ...prev, [f.id]: iso }))}
+                />
+              )}
+              {f.type === 'select' && (
                 <select
                   value={fieldGroupDraft[f.id] ?? ''}
                   onChange={(e) => handleFieldGroupChange(f, e.target.value)}
                 >
+                  {/* Skip the placeholder when a field already defines its own
+                      empty-value option (e.g. suffix's "None") so there's
+                      never a duplicate blank entry. */}
+                  {!f.options?.some((opt) => opt.value === '') && (
+                    <option value="" disabled>
+                      Select…
+                    </option>
+                  )}
                   {f.options?.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
                 </select>
-              ) : (
+              )}
+              {f.type === 'text' && (
                 <input
                   type="text"
                   maxLength={f.maxLength}
+                  placeholder={f.placeholder}
                   value={fieldGroupDraft[f.id] ?? ''}
                   onChange={(e) => handleFieldGroupChange(f, e.target.value)}
                 />
               )}
+              {fieldGroupDraftErrors[f.id] && <span className="field-error">{fieldGroupDraftErrors[f.id]}</span>}
             </label>
           ))}
           <div className="button-row">
@@ -591,7 +742,12 @@ export default function App() {
               ))}
             </div>
           ) : (
-            !showAddForm && <p className="help">None added yet.</p>
+            !showAddForm &&
+            (noneConfirmed ? (
+              <p className="help">Marked as none to add.</p>
+            ) : (
+              <p className="help">None added yet.</p>
+            ))
           )}
 
           {showAddForm ? (
@@ -605,6 +761,7 @@ export default function App() {
                       onChange={(iso) => setGroupDraft((prev) => ({ ...prev, [f.id]: iso }))}
                     />
                   )}
+                  {groupDraftErrors[f.id] && <span className="field-error">{groupDraftErrors[f.id]}</span>}
                   {f.type === 'select' && (
                     <select
                       value={groupDraft[f.id] ?? ''}
@@ -636,6 +793,7 @@ export default function App() {
                     setGroupEntries((prev) => [...prev, groupDraft]);
                     setGroupDraft(emptyEntry(node.fields));
                     setShowAddForm(false);
+                    setNoneConfirmed(false);
                   }}
                 >
                   Add
@@ -652,11 +810,29 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <button onClick={() => setShowAddForm(true)}>{node.addButtonText ?? '+ Add'}</button>
+            <div className="button-row">
+              <button onClick={() => setShowAddForm(true)}>{node.addButtonText ?? '+ Add'}</button>
+              {/* Optional group with nothing added yet: "fine to add none" in
+                  the help text isn't itself a selectable answer, so there's
+                  no visible way to say "I checked, there's nothing" short of
+                  pressing Continue and hoping — this button makes that an
+                  explicit choice, and gates Continue below until one of the
+                  two happens. */}
+              {node.required === false && groupEntries.length === 0 && (
+                <button className="link-button" onClick={() => setNoneConfirmed(true)}>
+                  None — nothing to add
+                </button>
+              )}
+            </div>
           )}
 
           <div className="button-row">
-            <button onClick={() => commit(groupEntries)}>Continue</button>
+            <button
+              disabled={node.required === false && groupEntries.length === 0 && !noneConfirmed}
+              onClick={() => commit(groupEntries)}
+            >
+              Continue
+            </button>
           </div>
         </div>
       )}

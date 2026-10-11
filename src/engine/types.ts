@@ -46,6 +46,18 @@ export interface RepeatingFieldDef {
   uppercase?: boolean; // 'text' only — force-uppercase as typed
   maxLength?: number; // 'text' only
   charPattern?: RegExp; // 'text' only — disallowed characters are stripped as typed
+  // Transforms raw typed input into the displayed value, e.g. phone number
+  // auto-formatting to 000-000-0000 as digits are typed — same purpose as
+  // QuestionNode.format, mirrored here so a 'text' field inside a
+  // repeatingGroup/fieldGroup (e.g. a phone field in a contact-info card)
+  // can use the same live-formatting behavior a top-level question gets.
+  format?: (raw: string) => string; // 'text' only
+  placeholder?: string; // 'text' only — grey hint text inside an empty input
+  // Final check run before the entry/fieldGroup can be added. Return an
+  // error string to block it, or null if the value is valid. Only
+  // consulted once the field has a value — leave required-ness to
+  // `required` so an empty optional field doesn't also have to pass this.
+  validate?: (value: string) => string | null;
 }
 
 export interface QuestionNode {
