@@ -59,6 +59,10 @@ export interface RepeatingFieldDef {
   label: string;
   type: RepeatingFieldType;
   required?: boolean;
+  // Small note rendered under the field itself (e.g. "Same as on your
+  // driver's license") — distinct from QuestionNode.helpText, which
+  // applies to the whole question/card rather than one field inside it.
+  helpText?: string;
   options?: SelectOption[]; // 'select' only
   uppercase?: boolean; // 'text' only — force-uppercase as typed
   maxLength?: number; // 'text' only

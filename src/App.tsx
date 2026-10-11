@@ -62,6 +62,41 @@ function truncateAt(answers: Answers, id: string): Answers {
   return kept;
 }
 
+// Mirrors useFlowContext's derivation, for use here outside the component
+// (no hooks) when reconciling an edited answer against the question graph.
+// Only needs the "already settled" case — by the time a later question is
+// reachable, confirmLocation has already written city/state straight into
+// answers, so there's no zip-lookup-in-flight case to account for.
+function deriveCtxFromAnswers(answers: Answers): FlowContext {
+  const state = answers.state as string | undefined;
+  const city = answers.city as string | undefined;
+  return { state, city, stateConfig: state ? STATE_CONFIG[state] : undefined };
+}
+
+// Re-editing an already-answered question used to wipe every answer after
+// it unconditionally, even when the new answer couldn't possibly have
+// changed anything downstream (e.g. correcting a typo in annual mileage
+// after already answering 20 more questions past it) — reported as
+// "clicking edit... deletes every answer underneath it." This instead
+// re-walks the flow forward from the edited question with its new value,
+// keeping every already-answered question the engine would still ask in
+// the same spot, and only drops things starting at the first point where
+// the new value actually sends the flow somewhere the old answers didn't
+// cover — a newly eligible/ineligible question that wasn't part of the
+// original path. `extra` covers confirmLocation, which sets more than one
+// key (city/state alongside the location question's own `true`) at once.
+function reconcileEdit(oldAnswers: Answers, editedId: string, newValue: unknown, extra?: Answers): Answers {
+  let next: Answers = { ...truncateAt(oldAnswers, editedId), ...extra, [editedId]: newValue };
+
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    const { node: upcoming } = getNextStep(QUESTIONS, next, deriveCtxFromAnswers(next));
+    if (!upcoming) break;
+    if (!(upcoming.id in oldAnswers)) break; // first real divergence — stop here, let the rest be re-asked
+    next = { ...next, [upcoming.id]: oldAnswers[upcoming.id] };
+  }
+  return next;
+}
+
 function formatValue(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (Array.isArray(v)) return v.length === 0 ? 'None added' : `${v.length} added`;
@@ -141,6 +176,22 @@ function readStoredTheme(): ThemeChoice {
   }
 }
 
+// The progress sidebar is a persistent, always-visible rail on a wide
+// enough viewport, but on a phone it's a full-width-ish overlay (up to
+// 85vw — see .progress-sidebar) that buries the actual question behind
+// it — reported as "opens by default and is obtrusive" on mobile. Default
+// it closed below this width; the toggle still opens it on request, it
+// just doesn't start in the way.
+const MOBILE_SIDEBAR_BREAKPOINT = 640;
+
+function defaultSidebarOpen(): boolean {
+  try {
+    return window.innerWidth >= MOBILE_SIDEBAR_BREAKPOINT;
+  } catch {
+    return true;
+  }
+}
+
 function systemPrefersDark(): boolean {
   try {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -153,7 +204,7 @@ export default function App() {
   const [answers, setAnswers] = useState<Answers>({});
   const [draft, setDraft] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(defaultSidebarOpen);
   const [theme, setTheme] = useState<ThemeChoice>(readStoredTheme);
   // Fake support widget — set dressing for the ClearPath placeholder
   // brand, same spirit as the trust badges and the footer's dead-end nav
@@ -165,6 +216,13 @@ export default function App() {
   // there's nothing to be misled by.
   const [supportWidgetOpen, setSupportWidgetOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  // Set while the user is re-answering an already-answered question via
+  // "Edit" in the overview panel. While this is set, `node` below is
+  // forced to that question instead of the computed frontier — answers
+  // are deliberately NOT truncated at jump time anymore (see jumpTo), so
+  // the rest of the chain stays intact unless/until reconcileEdit finds a
+  // real divergence once the new value is actually submitted.
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // repeatingGroup-only local state
   const [groupEntries, setGroupEntries] = useState<RepeatingEntry[]>([]);
@@ -190,7 +248,9 @@ export default function App() {
   const [zipRes, setZipRes] = useState<ZipResolution>({ zip: '', status: 'idle', result: null });
 
   const ctx = useFlowContext(answers, zipRes);
-  const { node, skippedIds } = getNextStep(QUESTIONS, answers, ctx);
+  const frontier = getNextStep(QUESTIONS, answers, ctx);
+  const node = editingId ? QUESTIONS.find((q) => q.id === editingId) ?? frontier.node : frontier.node;
+  const skippedIds = frontier.skippedIds;
 
   // Kick off the ZIP lookup whenever the answered ZIP changes. Guarded by
   // `cancelled` so a stale response (user went Back and re-answered a
@@ -283,12 +343,22 @@ export default function App() {
 
   function commit(value: unknown) {
     if (!node) return;
-    setAnswers((prev) => ({ ...prev, [node.id]: value }));
+    setAnswers((prev) => (editingId === node.id ? reconcileEdit(prev, node.id, value) : { ...prev, [node.id]: value }));
+    setEditingId(null);
     setDraft('');
     setError(null);
   }
 
   function goBack() {
+    // Mid-edit, "Back" reads as "never mind" rather than "undo an answer" —
+    // nothing was changed yet, so just drop back to wherever the flow
+    // actually is instead of walking the real answer chain backwards.
+    if (editingId) {
+      setEditingId(null);
+      setDraft('');
+      setError(null);
+      return;
+    }
     if (answeredIds.length === 0) return;
     const lastId = answeredIds[answeredIds.length - 1];
     setAnswers((prev) => truncateAt(prev, lastId));
@@ -297,7 +367,13 @@ export default function App() {
   }
 
   function jumpTo(id: string) {
-    setAnswers((prev) => truncateAt(prev, id));
+    // Used to truncate every answer from `id` onward immediately on click
+    // — reported as "clicking edit... deletes every answer underneath
+    // it" even when the new answer wouldn't have changed anything past
+    // it. Now nothing is touched until the edited question is actually
+    // resubmitted (see commit/confirmLocation + reconcileEdit above),
+    // which only clears what the new value genuinely invalidates.
+    setEditingId(id);
     setDraft('');
     setError(null);
     // Used to force-close the sidebar here (and in resetAll below) — a
@@ -319,12 +395,14 @@ export default function App() {
       return;
     }
     setAnswers({});
+    setEditingId(null);
     setDraft('');
     setError(null);
     setConfirmReset(false);
     // Start Over is a fresh start in every sense — re-open the sidebar
-    // even if the user had closed it mid-session.
-    setSidebarOpen(true);
+    // even if the user had closed it mid-session (but not on a phone,
+    // where "fresh start" shouldn't mean "bury the first question again").
+    setSidebarOpen(defaultSidebarOpen());
   }
 
   function handleDraftChange(raw: string) {
@@ -354,7 +432,12 @@ export default function App() {
 
   function confirmLocation() {
     if (!node) return;
-    setAnswers((prev) => ({ ...prev, city: locationDraft.city, state: locationDraft.state, [node.id]: true }));
+    setAnswers((prev) =>
+      editingId === node.id
+        ? reconcileEdit(prev, node.id, true, { city: locationDraft.city, state: locationDraft.state })
+        : { ...prev, city: locationDraft.city, state: locationDraft.state, [node.id]: true }
+    );
+    setEditingId(null);
     setDraft('');
     setError(null);
   }
@@ -574,7 +657,7 @@ export default function App() {
                   {q.shortLabel ?? q.prompt}
                   {isAnswered && <span className="sidebar-row-value"> — {displayValue}</span>}
                 </span>
-                {isAnswered && (
+                {isAnswered && q.id !== editingId && (
                   <button className="link-button sidebar-row-edit" onClick={() => jumpTo(q.id)}>
                     Edit
                   </button>
@@ -597,7 +680,11 @@ export default function App() {
         <div className="shell">
         {topBar}
         <h1>All done</h1>
-        <p>Here's the handoff document that would go downstream:</p>
+        <p className="all-done-message">
+          Your application is complete. We'll let you know within 7–21 business days whether it was received.
+        </p>
+        <p className="xml-label">For our internal systems</p>
+        <p className="help">Boring stuff, mostly for our own aging back-end — not something you need to read.</p>
         <pre className="xml-output">
           <code dangerouslySetInnerHTML={{ __html: highlightXml(xml) }} />
         </pre>
@@ -730,10 +817,23 @@ export default function App() {
                 same browser's autofill behavior biting us elsewhere). When
                 it decides that and shows its own AutoFill suggestion UI,
                 that overlay can eat the next Tab/Return itself instead of
-                letting it reach "Looks right" — reported as "can't even
-                tab to it". A neutral, non-address-shaped name/autoComplete
-                value keeps Safari from recognizing the field as one in the
-                first place. */}
+                letting it reach "Looks right".
+
+                Follow-up after this didn't fully resolve it: reported
+                behavior is Tab going City -> State -> the browser's own
+                address bar, skipping the button entirely. That's actually
+                expected Safari/macOS behavior, unrelated to this field's
+                autofill guess — by default Safari only Tabs between text
+                fields (and links), not buttons, unless "Keyboard
+                navigation" is turned on in macOS System Settings ->
+                Keyboard (older Safari: Preferences -> Advanced -> "Press
+                Tab to highlight each item on a webpage"). Not something a
+                page can turn on for the user. Enter, though, shouldn't
+                depend on that setting at all — the onKeyDown below submits
+                directly from the field instead of relying on the browser's
+                implicit "Enter in a form field triggers the one submit
+                button" behavior, in case the same autofill overlay is
+                still what's swallowing that. */}
             <input
               name="place-city"
               value={locationDraft.city}
@@ -742,6 +842,12 @@ export default function App() {
               spellCheck={false}
               onChange={(e) => setLocationDraft((prev) => ({ ...prev, city: e.target.value.toUpperCase() }))}
               onBlur={(e) => setLocationDraft((prev) => ({ ...prev, city: e.target.value.toUpperCase() }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  confirmLocation();
+                }
+              }}
             />
           </label>
           <label>
@@ -755,6 +861,12 @@ export default function App() {
               spellCheck={false}
               onChange={(e) => setLocationDraft((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
               onBlur={(e) => setLocationDraft((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  confirmLocation();
+                }
+              }}
             />
           </label>
           <button type="submit">Looks right</button>
@@ -839,6 +951,7 @@ export default function App() {
                   ))}
                 </select>
               )}
+              {f.helpText && <span className="field-hint">{f.helpText}</span>}
               {f.type === 'text' && (
                 <input
                   type="text"
@@ -949,6 +1062,7 @@ export default function App() {
                       ))}
                     </select>
                   )}
+                  {f.helpText && <span className="field-hint">{f.helpText}</span>}
                   {f.type === 'text' && (
                     <input
                       type="text"

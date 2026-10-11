@@ -56,10 +56,10 @@ export const QUESTIONS: QuestionNode[] = [
         label: 'Gender',
         type: 'select',
         required: false,
+        helpText: "Same as on your driver's license.",
         options: [
           { value: 'male', label: 'Male' },
           { value: 'female', label: 'Female' },
-          { value: 'other', label: 'Other' },
         ],
       },
       {
@@ -159,10 +159,10 @@ export const QUESTIONS: QuestionNode[] = [
         label: 'Gender',
         type: 'select',
         required: false,
+        helpText: "Same as on your driver's license.",
         options: [
           { value: 'male', label: 'Male' },
           { value: 'female', label: 'Female' },
-          { value: 'other', label: 'Other' },
         ],
       },
       { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateNotFutureDate },
