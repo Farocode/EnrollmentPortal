@@ -386,12 +386,10 @@ export default function App() {
   // real company). Legal copy is generic boilerplate-flavored text, not
   // modeled on any real insurer's actual disclosures.
   //
-  // Our Story / About / Jobs now go somewhere real instead of being dead
-  // `href="#"` links — plain static HTML pages in `public/` (not part of
-  // the React app/router, there isn't one), opened with target="_blank"
-  // so the app itself is never navigated away from or lost. Support /
-  // Privacy Policy / Terms of Use are still dead-end stubs; no content
-  // was asked for those yet.
+  // Every footer link now goes somewhere real instead of being a dead
+  // `href="#"` — plain static HTML pages in `public/` (not part of the
+  // React app/router, there isn't one), opened with target="_blank" so
+  // the app itself is never navigated away from or lost.
   const siteFooter = (
     <footer className="site-footer">
       <nav className="site-footer-nav" aria-label="Footer">
@@ -404,9 +402,15 @@ export default function App() {
         <a href={`${import.meta.env.BASE_URL}jobs.html`} target="_blank" rel="noopener noreferrer">
           Jobs at ClearPath
         </a>
-        <a href="#" onClick={(e) => e.preventDefault()}>Support</a>
-        <a href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
-        <a href="#" onClick={(e) => e.preventDefault()}>Terms of Use</a>
+        <a href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener noreferrer">
+          Support
+        </a>
+        <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer">
+          Privacy Policy
+        </a>
+        <a href={`${import.meta.env.BASE_URL}terms.html`} target="_blank" rel="noopener noreferrer">
+          Terms of Use
+        </a>
       </nav>
       <p className="site-footer-legal">
         ClearPath Insurance Agency, LLC is a licensed insurance agency. Products and coverage availability vary by

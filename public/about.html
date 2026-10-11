@@ -80,6 +80,28 @@
     color: var(--text);
     margin-top: 0.2rem;
   }
+  .video-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem 1.3rem;
+    background: var(--code-bg);
+    margin: 2rem 0;
+  }
+  .video-card p { margin: 0 0 1rem; }
+  .video-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .video-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .video-link:hover { text-decoration: underline; }
   .sig {
     margin-top: 3rem;
     padding-top: 1.5rem;
@@ -130,11 +152,17 @@
       </div>
       <div class="stat">
         <div class="stat-num">2</div>
-        <div class="stat-label">Countries we won't confirm or deny operating in</div>
+        <div class="stat-label">Countries we operate in abroad: Madagascar, Iran</div>
       </div>
     </div>
 
     <p>We remain, as always, fully committed to compliance — to the extent that compliance remains optional.</p>
+
+    <div class="video-card">
+      <div class="video-label">Our story, in motion</div>
+      <p>Words only get you so far. For the full ClearPath experience, our founders sat down for an unflinching, unscripted look at who we are and why we do this. We think you should watch it.</p>
+      <a class="video-link" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer">▶ Watch the ClearPath story</a>
+    </div>
 
     <p class="sig">ClearPath Insurance: still here. Still somehow accredited.</p>
 
