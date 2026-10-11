@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Support Assistant — ClearPath Insurance</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico" />
+<style>
+  :root {
+    --text: #4b4553;
+    --text-h: #08060d;
+    --bg: #fff;
+    --border: #e5e4e7;
+    --accent: #aa3bff;
+    --code-bg: #f4f3ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text: #9ca3af;
+      --text-h: #f3f4f6;
+      --bg: #16171d;
+      --border: #2e303a;
+      --accent: #c084fc;
+      --code-bg: #1f2028;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 18px/1.6 system-ui, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+  }
+  .wrap {
+    max-width: 440px;
+    width: 100%;
+    padding: 2rem 1.5rem;
+  }
+  .brand {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+    font-size: 1.05rem;
+    margin-bottom: 1.75rem;
+    text-align: center;
+  }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--code-bg);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-h);
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    flex: none;
+  }
+  .panel-body {
+    padding: 2.2rem 1.5rem 1.8rem;
+    text-align: center;
+  }
+  .spinner {
+    width: 38px;
+    height: 38px;
+    margin: 0 auto 1.2rem;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status {
+    font-size: 0.95rem;
+    color: var(--text-h);
+    min-height: 1.4em;
+  }
+  .substatus {
+    font-size: 0.78rem;
+    color: var(--text);
+    margin-top: 0.4rem;
+    min-height: 1.2em;
+  }
+  .panel-input-row {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.8rem;
+    border-top: 1px solid var(--border);
+  }
+  .panel-input-row input {
+    flex: 1;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+  .panel-input-row input::placeholder { color: var(--text); opacity: 0.6; }
+  .panel-input-row button {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    opacity: 0.55;
+  }
+  input:disabled, .panel-input-row button:disabled {
+    cursor: not-allowed;
+  }
+  .close-row {
+    margin-top: 2rem;
+    text-align: center;
+  }
+  button.close-btn {
+    font: inherit;
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--code-bg);
+    color: var(--text-h);
+    cursor: pointer;
+  }
+  .hint {
+    font-size: 0.78rem;
+    color: var(--text);
+    margin-top: 0.6rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">✓ ClearPath Insurance</div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot" id="statusDot"></span>
+        <span>✨ ClearPath Assistant</span>
+      </div>
+      <div class="panel-body">
+        <div class="spinner"></div>
+        <div class="status" id="status">Connecting you to an agent…</div>
+        <div class="substatus" id="substatus">This usually only takes a moment.</div>
+      </div>
+      <form class="panel-input-row" onsubmit="return false;">
+        <input type="text" placeholder="Type a message…" disabled />
+        <button type="button" disabled>Send</button>
+      </form>
+    </div>
+
+    <div class="close-row">
+      <button type="button" class="close-btn" onclick="window.close()">Close this tab</button>
+      <div class="hint">(If that doesn't do anything — most browsers won't let a page close a tab it didn't open itself — just press Ctrl/Cmd+W.)</div>
+    </div>
+  </div>
+
+  <script>
+    var messages = [
+      { status: "Connecting you to an agent…", sub: "This usually only takes a moment.", dot: "#f59e0b" },
+      { status: "Still connecting…", sub: "Thanks for your patience.", dot: "#f59e0b" },
+      { status: "This is taking longer than expected.", sub: "Your position in queue has not been determined.", dot: "#f59e0b" },
+      { status: "Re-establishing connection…", sub: "No agents are currently available, but one may become available.", dot: "#ef4444" },
+      { status: "We're sorry for the delay.", sub: "There is nothing further to report at this time.", dot: "#ef4444" },
+      { status: "Still trying.", sub: "You're welcome to keep waiting. We will not be offended either way.", dot: "#ef4444" }
+    ];
+    var i = 0;
+    var statusEl = document.getElementById("status");
+    var subEl = document.getElementById("substatus");
+    var dotEl = document.getElementById("statusDot");
+    function next() {
+      i = (i + 1) % messages.length;
+      var m = messages[i];
+      statusEl.textContent = m.status;
+      subEl.textContent = m.sub;
+      dotEl.style.background = m.dot;
+    }
+    setInterval(next, 3200);
+  </script>
+</body>
+</html>
