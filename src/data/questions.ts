@@ -1,20 +1,27 @@
 import type { QuestionNode } from '../engine/types';
 import { NAME_CHAR, ADDRESS_CHAR, validateEmail, formatPhone, validatePhone, validateVehicleYear, validateNotFutureDate } from '../engine/validators';
-import { VEHICLE_MAKES } from './vehicleMakes';
+import { VEHICLE_MAKE_GROUPS } from './vehicleMakes';
 
 // Sample flow from the spec, in default order. The engine walks this array
 // and skips any node whose condition evaluates false — that's how the
 // rideshare branch, street-parking follow-up, lapse-duration follow-up,
 // and the config-driven SR-22 disclosure all work without a separate
 // graph structure.
+//
+// Every node carries a `shortLabel` — the title shown in the progress
+// sidebar (e.g. "Name") instead of the full conversational `prompt`
+// ("What's your name?"). The sidebar rail is narrow and the full phrasing
+// reads as noise once you already know what's behind it; the full prompt
+// is still available as a hover title on the row.
 export const QUESTIONS: QuestionNode[] = [
-  { id: 'zip', section: 'applicant', type: 'text', prompt: "What's your ZIP code?" },
-  { id: 'location', section: 'applicant', type: 'location', prompt: 'Is this right?' },
+  { id: 'zip', section: 'applicant', type: 'text', prompt: "What's your ZIP code?", shortLabel: 'ZIP code' },
+  { id: 'location', section: 'applicant', type: 'location', prompt: 'Is this right?', shortLabel: 'Location' },
   {
     id: 'fullName',
     section: 'applicant',
     type: 'fieldGroup',
     prompt: "What's your name?",
+    shortLabel: 'Name',
     helpText: 'Split into separate fields so it matches cleanly downstream.',
     fields: [
       { id: 'first', label: 'First name', type: 'text', required: true, uppercase: true, charPattern: NAME_CHAR, maxLength: 40 },
@@ -41,6 +48,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'applicant',
     type: 'fieldGroup',
     prompt: 'A little about you',
+    shortLabel: 'About you',
     helpText: 'Used to pull a credit-based insurance score and verify identity on real applications — kept light here.',
     fields: [
       {
@@ -81,6 +89,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'applicant',
     type: 'fieldGroup',
     prompt: "What's the best way to reach you?",
+    shortLabel: 'Contact information',
     fields: [
       {
         id: 'phone',
@@ -99,6 +108,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'applicant',
     type: 'text',
     prompt: "What's your street address?",
+    shortLabel: 'Address',
     charPattern: ADDRESS_CHAR,
     maxLength: 100,
     uppercase: true,
@@ -108,6 +118,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'applicant',
     type: 'select',
     prompt: 'Do you own or rent your home?',
+    shortLabel: 'Home ownership',
     helpText: 'Homeowners (including condo owners) often qualify for a bundling discount.',
     options: [
       { value: 'own_home', label: 'Own a home' },
@@ -121,6 +132,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'applicant',
     type: 'repeatingGroup',
     prompt: 'Does anyone else in your household drive, or drive this car regularly?',
+    shortLabel: 'Household drivers',
     helpText: "Add each person — name, relation, and date of birth. It's fine to add none.",
     required: false,
     listHeading: 'Household members added',
@@ -162,21 +174,29 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'vehicle',
     type: 'number',
     prompt: 'What year is your vehicle?',
+    shortLabel: 'Vehicle year',
     validate: validateVehicleYear,
   },
   {
     id: 'vehicleMake',
     section: 'vehicle',
-    type: 'select',
+    // Switched from a plain <select> (one long undifferentiated list) to
+    // a filterable combobox, grouped "Most common" + "All makes" (see
+    // vehicleMakes.ts) — user feedback: a flat dropdown of ~30 makes was
+    // unwieldy, wanted a text field with a dropdown, alphabetized, with
+    // the handful of highest-volume brands surfaced first.
+    type: 'combobox',
     prompt: 'What make?',
-    options: VEHICLE_MAKES,
+    shortLabel: 'Vehicle make',
+    optionGroups: VEHICLE_MAKE_GROUPS,
   },
-  { id: 'vehicleModel', section: 'vehicle', type: 'text', prompt: 'What model?', maxLength: 60, uppercase: true },
+  { id: 'vehicleModel', section: 'vehicle', type: 'text', prompt: 'What model?', shortLabel: 'Vehicle model', maxLength: 60, uppercase: true },
   {
     id: 'vehicleOwnership',
     section: 'vehicle',
     type: 'select',
     prompt: "What's your ownership status on the vehicle?",
+    shortLabel: 'Vehicle ownership',
     options: [
       { value: 'owned', label: 'Owned outright' },
       { value: 'financed', label: 'Financed' },
@@ -188,6 +208,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'vehicle',
     type: 'select',
     prompt: 'Where is it usually parked overnight?',
+    shortLabel: 'Where parked',
     options: [
       { value: 'garage', label: 'Garage' },
       { value: 'driveway', label: 'Driveway' },
@@ -199,6 +220,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'vehicle',
     type: 'text',
     prompt: 'Roughly which block or intersection?',
+    shortLabel: 'Parking detail',
     condition: (a) => a.parkingLocation === 'street',
     uppercase: true,
   },
@@ -207,6 +229,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'vehicle',
     type: 'boolean',
     prompt: 'Is the vehicle kept overnight at the address you gave earlier?',
+    shortLabel: 'Garaging',
     helpText: 'Garaging location affects rates via local accident/theft statistics — only asked separately when it differs from your own address.',
   },
   {
@@ -214,6 +237,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'vehicle',
     type: 'text',
     prompt: "What's the address where it's actually kept?",
+    shortLabel: 'Garage address',
     condition: (a) => a.garagedAtHome === false,
     charPattern: ADDRESS_CHAR,
     maxLength: 100,
@@ -225,6 +249,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'number',
     prompt: 'About how many miles do you drive per year?',
+    shortLabel: 'Annual mileage',
     helpText: "Not sure? Rough guide: under 7,500 is light, around 12,000 is the national average, 12,000–15,000 is heavier use, and 15,000+ often means rideshare/delivery or other commercial driving.",
     // People habitually type thousands separators here ("12,000") — let
     // them. Stripped back out to a plain number before it's stored/
@@ -238,6 +263,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'boolean',
     prompt: 'That qualifies for a low-mileage discount — want us to apply it?',
+    shortLabel: 'Low-mileage discount',
     condition: (a) => typeof a.annualMileage === 'number' && (a.annualMileage as number) < 7500,
   },
   {
@@ -245,6 +271,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'select',
     prompt: 'What do you mainly use the vehicle for?',
+    shortLabel: 'Primary use',
     options: [
       { value: 'commute', label: 'Commuting to work/school' },
       { value: 'pleasure', label: 'Pleasure / personal use' },
@@ -257,6 +284,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'select',
     prompt: 'Which platform(s) do you drive for?',
+    shortLabel: 'Rideshare platform',
     options: [
       { value: 'uber', label: 'Uber' },
       { value: 'lyft', label: 'Lyft' },
@@ -269,6 +297,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'number',
     prompt: 'About how many hours a week do you drive for the platform?',
+    shortLabel: 'Rideshare hours',
     condition: (a) => a.primaryUse === 'rideshare',
   },
   // --- end rideshare sub-flow ---
@@ -277,6 +306,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'repeatingGroup',
     prompt: 'Any accidents or violations in the past 3–5 years?',
+    shortLabel: 'Driving record',
     helpText: "Add each one — type, date, and a brief description. It's fine to add none.",
     required: false,
     listHeading: 'Incidents added',
@@ -302,6 +332,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'select',
     prompt: 'Have you had continuous auto insurance coverage?',
+    shortLabel: 'Insurance history',
     options: [
       { value: 'continuous', label: 'Yes, continuously' },
       { value: 'lapsed', label: 'I had a lapse' },
@@ -313,6 +344,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'coverage',
     type: 'select',
     prompt: 'How long was the lapse?',
+    shortLabel: 'Lapse duration',
     options: [
       { value: 'lt30', label: 'Less than 30 days' },
       { value: '30to90', label: '30–90 days' },
@@ -325,6 +357,7 @@ export const QUESTIONS: QuestionNode[] = [
     section: 'stateDisclosures',
     type: 'boolean',
     prompt: 'Does your state require an SR-22 filing for you?',
+    shortLabel: 'SR-22 disclosure',
     helpText:
       "An SR-22 isn't insurance itself — it's a certificate your insurer files with the state proving you carry at least the state's minimum coverage. States typically require it after things like a DUI, an at-fault accident while uninsured, or a license suspension.",
     condition: (_a, ctx) => Boolean(ctx.stateConfig?.extraDisclosures.includes('sr22_disclosure')),
@@ -336,6 +369,5 @@ export const QUESTIONS: QuestionNode[] = [
 // in the sample flow, called out but not resolved in the spec:
 //   - VIN as an alternative to year/make/model entry
 //   - Prior carrier name (only lapse status/duration are asked today)
-//   - Homeowner/renter status (sometimes a rating factor, not in spec sample)
 // TODO: flesh these out and splice into QUESTIONS when the flow expands
 // past the sample set.

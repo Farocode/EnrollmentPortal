@@ -23,11 +23,28 @@ export interface FlowContext {
   stateConfig?: StateConfig;
 }
 
-export type FieldType = 'text' | 'number' | 'boolean' | 'select' | 'location' | 'repeatingGroup' | 'fieldGroup';
+export type FieldType =
+  | 'text'
+  | 'number'
+  | 'boolean'
+  | 'select'
+  | 'combobox'
+  | 'location'
+  | 'repeatingGroup'
+  | 'fieldGroup';
 
 export interface SelectOption {
   value: string;
   label: string;
+}
+
+// A labeled section of options inside a 'combobox' question (e.g. "Most
+// common" vs. "All makes") — the component filters and flattens across
+// every group as the user types, but shows them under their own headings
+// when the field is empty/unfiltered.
+export interface ComboboxGroup {
+  label: string;
+  options: SelectOption[];
 }
 
 export type Section = 'applicant' | 'vehicle' | 'coverage' | 'stateDisclosures';
@@ -64,9 +81,19 @@ export interface QuestionNode {
   id: string;
   section: Section;
   prompt: string;
+  // Short section title shown in the progress sidebar instead of the full
+  // prompt (e.g. "Contact information" for "What's the best way to reach
+  // you?") — the sidebar rail is only ~280px wide, and the full phrasing
+  // of a question reads as noise once you already know the answer behind
+  // it. Falls back to `prompt` when omitted. The full prompt still shows
+  // as a hover title on the row, so nothing's lost, just de-emphasized.
+  shortLabel?: string;
   helpText?: string;
   type: FieldType;
   options?: SelectOption[];
+  // 'combobox' only — grouped options (e.g. "Most common" + "All makes").
+  // The text input filters/flattens across every group as typed.
+  optionGroups?: ComboboxGroup[];
   // Fires only if this returns true (or is absent). Evaluated against
   // answers collected so far plus derived flow context (state/city/config).
   condition?: (answers: Answers, ctx: FlowContext) => boolean;

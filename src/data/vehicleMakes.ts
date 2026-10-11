@@ -1,12 +1,47 @@
-import type { SelectOption } from '../engine/types';
+import type { ComboboxGroup, SelectOption } from '../engine/types';
 
-// Common makes for the demo dropdown — not exhaustive, just enough to
-// replace free-text entry with a realistic pre-populated list.
-export const VEHICLE_MAKES: SelectOption[] = [
-  'Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 'Jeep', 'Dodge', 'GMC',
-  'Hyundai', 'Kia', 'Subaru', 'Volkswagen', 'BMW', 'Mercedes-Benz', 'Audi',
-  'Lexus', 'Mazda', 'Dodge', 'Chrysler', 'Buick', 'Cadillac', 'Tesla',
-  'Volvo', 'Mitsubishi', 'Acura', 'Infiniti', 'Porsche', 'Mini',
-].map((make) => ({ value: make, label: make }));
+// Make question switched from one long undifferentiated <select> list to a
+// filterable combobox (see ComboboxInput.tsx), grouped two ways per user
+// request: a short "Most common" tier up top (roughly the highest-volume
+// US sales brands), then everything else below. Both tiers are
+// alphabetized — the tiering is what surfaces the common ones first, and
+// stacking a second, different sort order (popularity) inside just that
+// one group on top of it would read as arbitrary/confusing rather than
+// helpful, per user feedback. Typing filters across both tiers regardless
+// of which one a make is filed under.
+const TOP_MAKE_NAMES = ['Toyota', 'Ford', 'Chevrolet', 'Honda', 'Nissan', 'Jeep', 'Hyundai', 'Kia', 'Subaru', 'GMC'].sort(
+  (a, b) => a.localeCompare(b),
+);
 
-VEHICLE_MAKES.push({ value: 'other', label: 'Other / not listed' });
+// Alphabetized. (Previously had Dodge listed twice in the old flat list —
+// not reproduced here.)
+const OTHER_MAKE_NAMES = [
+  'Acura',
+  'Audi',
+  'BMW',
+  'Buick',
+  'Cadillac',
+  'Chrysler',
+  'Dodge',
+  'Infiniti',
+  'Lexus',
+  'Mazda',
+  'Mercedes-Benz',
+  'Mini',
+  'Mitsubishi',
+  'Porsche',
+  'Ram',
+  'Tesla',
+  'Volkswagen',
+  'Volvo',
+].sort((a, b) => a.localeCompare(b));
+
+const toOptions = (names: string[]): SelectOption[] => names.map((make) => ({ value: make, label: make }));
+
+export const VEHICLE_MAKE_GROUPS: ComboboxGroup[] = [
+  { label: 'Most common', options: toOptions(TOP_MAKE_NAMES) },
+  {
+    label: 'All makes',
+    options: [...toOptions(OTHER_MAKE_NAMES), { value: 'Other / not listed', label: 'Other / not listed' }],
+  },
+];

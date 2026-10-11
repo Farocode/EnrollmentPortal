@@ -8,6 +8,7 @@ import { getNextStep } from './engine/flowEngine';
 import { compileXml } from './engine/xmlCompiler';
 import { highlightXml } from './engine/xmlHighlight';
 import { DateSegmentedInput } from './components/DateSegmentedInput';
+import { ComboboxInput } from './components/ComboboxInput';
 import { stripToPattern } from './engine/validators';
 import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
 
@@ -112,7 +113,14 @@ function applyFieldTransform(field: RepeatingFieldDef, raw: string): string {
 // here the same way it wouldn't be for anything shared or durable. Reads
 // and writes are wrapped since storage can throw or be unavailable (private
 // browsing, blocked site data).
-const SIDEBAR_STORAGE_KEY = 'enrollmentPortal.sidebarOpen';
+//
+// Key has a ".v2" suffix: the sidebar used to default to closed, and
+// anyone who'd already toggled it (including during earlier testing) had
+// "closed" sitting in storage under the old key — which silently overrode
+// the new "defaults to open" behavior added later, since that default only
+// applies when nothing is stored yet. Bumping the key means old values
+// are simply never read, so the new default actually takes for everyone.
+const SIDEBAR_STORAGE_KEY = 'enrollmentPortal.sidebarOpen.v2';
 
 function readStoredSidebarOpen(): boolean {
   try {
@@ -425,43 +433,45 @@ export default function App() {
       {sidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
       <div className={`progress-sidebar${sidebarOpen ? ' open' : ''}`}>
         <h2 className="progress-sidebar-heading">Your progress</h2>
-        {QUESTIONS.map((q) => {
-          const isAnswered = q.id in answers;
-          const isSkippedSoFar = !isAnswered && q.condition && !q.condition(answers, ctx);
-          const isCurrent = node?.id === q.id;
-          const displayValue =
-            q.type === 'fieldGroup' && q.fields
-              ? q.fields
-                  .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
-                  .filter(Boolean)
-                  .join(' ')
-              : formatValue(answers[q.id]);
-          // Condensed status glyph so a row stays legible as a narrow rail
-          // item: ✓ answered, a filled dot for the current question, an
-          // em-dash for skipped-so-far, a mid-dot for not-reached-yet.
-          const glyph = isAnswered ? '✓' : isCurrent ? '●' : isSkippedSoFar ? '—' : '·';
-          return (
-            <div
-              key={q.id}
-              className={`sidebar-row${isCurrent ? ' current' : ''}${isSkippedSoFar ? ' skipped' : ''}${
-                isAnswered ? ' answered' : ''
-              }`}
-            >
-              <span className="sidebar-row-glyph" aria-hidden="true">
-                {glyph}
-              </span>
-              <span className="sidebar-row-label" title={q.prompt}>
-                {q.prompt}
-                {isAnswered && <span className="sidebar-row-value"> — {displayValue}</span>}
-              </span>
-              {isAnswered && (
-                <button className="link-button sidebar-row-edit" onClick={() => jumpTo(q.id)}>
-                  Edit
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {QUESTIONS
+          // Only ever show what's actually been asked (or is being asked
+          // right now) — a not-yet-reached question, and one skipped by
+          // branching (e.g. rideshare follow-ups when that wasn't the
+          // answer), used to sit in the list as a greyed-out "·"/"—" row.
+          // User feedback: that read as clutter — hide both, same as
+          // they're already excluded from the final XML's answered set.
+          .filter((q) => q.id in answers || node?.id === q.id)
+          .map((q) => {
+            const isAnswered = q.id in answers;
+            const isCurrent = node?.id === q.id;
+            const displayValue =
+              q.type === 'fieldGroup' && q.fields
+                ? q.fields
+                    .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
+                    .filter(Boolean)
+                    .join(' ')
+                : formatValue(answers[q.id]);
+            const glyph = isAnswered ? '✓' : '●';
+            return (
+              <div key={q.id} className={`sidebar-row${isCurrent ? ' current' : ''}${isAnswered ? ' answered' : ''}`}>
+                <span className="sidebar-row-glyph" aria-hidden="true">
+                  {glyph}
+                </span>
+                {/* Short section title ("Name", "Contact information") rather
+                    than the full conversational prompt — the full prompt is
+                    still there as a hover title, just de-emphasized. */}
+                <span className="sidebar-row-label" title={q.prompt}>
+                  {q.shortLabel ?? q.prompt}
+                  {isAnswered && <span className="sidebar-row-value"> — {displayValue}</span>}
+                </span>
+                {isAnswered && (
+                  <button className="link-button sidebar-row-edit" onClick={() => jumpTo(q.id)}>
+                    Edit
+                  </button>
+                )}
+              </div>
+            );
+          })}
       </div>
     </>
   );
@@ -624,27 +634,37 @@ export default function App() {
         </form>
       )}
 
-      {(node.type === 'text' || node.type === 'number') && (
+      {(node.type === 'text' || node.type === 'number' || node.type === 'combobox') && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
             submitDraft();
           }}
         >
-          <input
-            autoFocus
-            // A native type="number" input rejects commas outright, and
-            // this question (annualMileage) wants to allow them as typed —
-            // use text + inputMode so the numeric keyboard still shows on
-            // mobile, while charPattern (set per-node) does the real
-            // character filtering.
-            type="text"
-            inputMode={node.type === 'number' ? 'numeric' : undefined}
-            maxLength={node.maxLength}
-            placeholder={node.placeholder}
-            value={draft}
-            onChange={(e) => handleDraftChange(e.target.value)}
-          />
+          {node.type === 'combobox' ? (
+            <ComboboxInput
+              value={draft}
+              onChange={handleDraftChange}
+              groups={node.optionGroups ?? []}
+              placeholder={node.placeholder}
+              maxLength={node.maxLength}
+            />
+          ) : (
+            <input
+              autoFocus
+              // A native type="number" input rejects commas outright, and
+              // this question (annualMileage) wants to allow them as typed —
+              // use text + inputMode so the numeric keyboard still shows on
+              // mobile, while charPattern (set per-node) does the real
+              // character filtering.
+              type="text"
+              inputMode={node.type === 'number' ? 'numeric' : undefined}
+              maxLength={node.maxLength}
+              placeholder={node.placeholder}
+              value={draft}
+              onChange={(e) => handleDraftChange(e.target.value)}
+            />
+          )}
           <button type="submit">Next</button>
         </form>
       )}
@@ -819,9 +839,13 @@ export default function App() {
                   explicit choice, and gates Continue below until one of the
                   two happens. */}
               {node.required === false && groupEntries.length === 0 && (
-                <button className="link-button" onClick={() => setNoneConfirmed(true)}>
-                  None — nothing to add
-                </button>
+                // A plain button, same weight as "+ Add [x]" — this was a
+                // .link-button (small underlined text) at first, which read
+                // as a minor afterthought even though it's the only other
+                // way to satisfy a required-to-answer question. User
+                // feedback: "too hidden... should probably be equal to the
+                // Add button."
+                <button onClick={() => setNoneConfirmed(true)}>None — nothing to add</button>
               )}
             </div>
           )}
