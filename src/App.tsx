@@ -836,6 +836,13 @@ export default function App() {
                 still what's swallowing that. */}
             <input
               name="place-city"
+              // Auto-focused so a confirmed ZIP match (the common case,
+              // both fields already pre-filled correctly) can be accepted
+              // with a single Enter press, no click required first — user
+              // feedback: the fields autofill from the prior ZIP answer,
+              // but nothing had focus by default, so Enter had nothing to
+              // act on until the user clicked into a field themselves.
+              autoFocus
               value={locationDraft.city}
               autoComplete="off"
               autoCorrect="off"
