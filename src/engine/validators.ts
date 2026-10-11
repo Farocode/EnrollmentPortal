@@ -43,12 +43,21 @@ export function validatePhone(value: string): string | null {
   return null;
 }
 
+// Fixed floor rather than a rolling "N years back" window: standard auto
+// insurance doesn't have a real age cutoff (any registered vehicle
+// qualifies — classic/collector coverage is a separate add-on category,
+// not a requirement older cars get pushed into), so an arbitrary fleet-age
+// floor was excluding legitimately-insurable older daily drivers. 1981 is
+// a real, fixed industry milestone instead of a guess: it's the first
+// model year the 17-character VIN format was required, which also lines
+// up with this app's VIN validation rules.
+const MIN_VEHICLE_YEAR = 1981;
+
 export function validateVehicleYear(value: string): string | null {
   const year = Number(value);
   const now = new Date().getFullYear();
   const max = now + 1; // next model year is typically already on sale
-  const min = now - 25; // demo-reasonable fleet-age floor
   if (!Number.isInteger(year)) return 'Enter a valid year';
-  if (year < min || year > max) return `Enter a year between ${min} and ${max}`;
+  if (year < MIN_VEHICLE_YEAR || year > max) return `Enter a year between ${MIN_VEHICLE_YEAR} and ${max}`;
   return null;
 }

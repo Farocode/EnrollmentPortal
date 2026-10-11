@@ -136,7 +136,13 @@ export const QUESTIONS: QuestionNode[] = [
     uppercase: true,
   },
 
-  { id: 'annualMileage', section: 'coverage', type: 'number', prompt: 'About how many miles do you drive per year?' },
+  {
+    id: 'annualMileage',
+    section: 'coverage',
+    type: 'number',
+    prompt: 'About how many miles do you drive per year?',
+    helpText: "Not sure? Rough guide: under 7,500 is light, around 12,000 is the national average, 12,000–15,000 is heavier use, and 15,000+ often means rideshare/delivery or other commercial driving.",
+  },
   {
     id: 'lowMileageDiscount',
     section: 'coverage',
