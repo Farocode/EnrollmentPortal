@@ -65,6 +65,28 @@
     rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 }
 
+/* `color-scheme: light dark` on :root (above) is what lets a *system*
+   preference change repaint native browser UI (scrollbars, the default
+   unstyled-input look, autofill affordances like Safari's contact-card
+   icon) without a reload — necessary for the "follow system" / no
+   explicit theme case. But it also means that even with an explicit
+   [data-theme] override, Safari was still picking that native chrome's
+   color based on the OS's OWN dark/light setting, not the page's chosen
+   theme — reported live: light theme selected, but Safari rendered input
+   boxes and the autofill icon dark/black regardless. Pinning
+   `color-scheme` to match an explicit choice fixes that: Safari then
+   renders native form chrome for the theme actually in effect, not the
+   OS's. (The input/select color + background are also pinned directly in
+   App.css, as a second layer — belt and suspenders, since color-scheme is
+   a hint some engines still weight loosely.)
+   */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) #social .button-icon {
     filter: invert(1) brightness(2);

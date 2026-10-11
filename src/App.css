@@ -14,6 +14,124 @@
   max-width: 420px;
   height: auto;
 }
+.site-footer {
+  margin-top: 3rem;
+  padding: 2rem 1.5rem 3rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.site-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.1rem;
+  margin-bottom: 1.25rem;
+}
+.site-footer-nav a {
+  color: var(--text);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.site-footer-nav a:hover {
+  text-decoration: underline;
+}
+.site-footer-legal {
+  max-width: 640px;
+  margin: 0 auto 0.75rem;
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.site-footer-copyright {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+/* Floating support widgets (fake Live Chat / AI Assistant) — fixed
+   bottom-right, above everything else on the page including the progress
+   sidebar's own z-index (20) and its toggle (30). */
+.support-widget {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+.support-fab-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+.support-fab {
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow);
+}
+.support-fab.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+.support-panel {
+  width: 280px;
+  max-width: calc(100vw - 2rem);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  text-align: left;
+}
+.support-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  background: var(--accent-bg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+.support-panel-close {
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1;
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+}
+.support-panel-body {
+  padding: 0.9rem;
+}
+.support-message {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-h);
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+}
+.support-panel-input-row {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 0.9rem 0.9rem;
+  margin-top: 0;
+}
+.support-panel-input-row input {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+}
+.support-panel-input-row button {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.85rem;
+}
 .top-bar {
   display: flex;
   gap: 1rem;
@@ -75,12 +193,6 @@
   line-height: 1;
   padding: 0;
   cursor: pointer;
-}
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.15);
-  z-index: 19;
 }
 .progress-sidebar {
   position: fixed;
@@ -167,10 +279,40 @@ form {
   gap: 0.5rem;
   margin-top: 1.5rem;
 }
+/* Pinned directly, rather than left to the browser's unstyled-control
+   default: Safari in particular was rendering form fields with a dark
+   background + light text even while the page itself was in light theme
+   (its native control color leans on the `color-scheme` CSS property —
+   see index.css — which is a hint some engines weight more loosely than
+   others). Setting these explicitly means every input/select/textarea
+   always matches the page's actual theme, system-hint quirks aside. */
+input,
+select,
+textarea {
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+}
 input {
   flex: 1;
   padding: 0.6rem 0.8rem;
   font-size: 1rem;
+}
+/* Safari/Chrome ignore an autofilled input's normal background/color
+   entirely and paint their own (classically a pale yellow in Chrome; in
+   Safari, frequently a dark fill matching OS appearance regardless of the
+   page's theme) — the only reliable override is this inset-box-shadow
+   trick, not a plain `background` rule. The absurdly long transition
+   delay is the standard way to suppress Chrome's autofill background
+   re-asserting itself after a delay. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-h);
+  box-shadow: 0 0 0 1000px var(--bg) inset;
+  transition: background-color 9999s ease-in-out 0s;
 }
 /* Vehicle-make style text+dropdown field (ComboboxInput.tsx). `.combobox`
    wraps the input so the suggestion list can be absolutely positioned
@@ -222,10 +364,37 @@ input {
 .combobox-option:hover {
   background: var(--accent-bg);
 }
+/* Pinned explicitly, same reasoning as the input/select/textarea fix
+   above: a plain <button> was left to native UA chrome entirely (no
+   background/color/border of our own), and once `color-scheme` is
+   correctly pinned to the page's actual theme (see index.css), the
+   native button face + text color combination went invisible in light
+   theme — button was genuinely there, just unstyled white-ish text on an
+   unstyled white-ish face, only visible when text-selected. Every button
+   in the app now gets a real, theme-aware look instead of whatever the
+   browser feels like rendering. */
 button {
   padding: 0.6rem 1.1rem;
   font-size: 1rem;
+  font-family: inherit;
   cursor: pointer;
+  background: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+/* Excludes .link-button — it already defines its own text-link look
+   (background: none, no border) and its own :disabled state further down;
+   a (pseudo-class-driven) selector here would otherwise out-specificity
+   that plain class selector and paint an unwanted background box behind
+   what's meant to read as a plain text link (Back, Start over, Edit...). */
+button:not(.link-button):hover:not(:disabled) {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+button:not(.link-button):disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 /* Was flex-wrap, which stacked options into a single cramped column at
    normal widths once labels got long (user feedback on the 3-option

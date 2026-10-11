@@ -164,6 +164,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(readStoredSidebarOpen);
   const [theme, setTheme] = useState<ThemeChoice>(readStoredTheme);
+  // Fake support widgets — set dressing for the ClearPath placeholder
+  // brand, same spirit as the trust badges and the footer's dead-end nav
+  // links. 'none' means neither panel is open; opening one closes the
+  // other, like a real chat-widget launcher would.
+  const [activeWidget, setActiveWidget] = useState<'none' | 'chat' | 'ai'>('none');
   const [confirmReset, setConfirmReset] = useState(false);
 
   // repeatingGroup-only local state
@@ -300,7 +305,13 @@ export default function App() {
     setAnswers((prev) => truncateAt(prev, id));
     setDraft('');
     setError(null);
-    setSidebarOpen(false);
+    // Used to force-close the sidebar here (and in resetAll below) — a
+    // leftover from when it defaulted closed and "jump back into the
+    // focused question view" meant auto-hiding the panel you'd opened to
+    // get there. Now that it defaults open and persists, that read as a
+    // bug: clicking "Edit" from the sidebar immediately hid the thing you
+    // just clicked in. Sidebar open/closed state is the user's own
+    // explicit choice now (via the toggle) — navigation shouldn't change it.
   }
 
   function toggleSidebar() {
@@ -325,7 +336,6 @@ export default function App() {
     setDraft('');
     setError(null);
     setConfirmReset(false);
-    setSidebarOpen(false);
   }
 
   function handleDraftChange(raw: string) {
@@ -382,6 +392,89 @@ export default function App() {
     </header>
   );
 
+  // Same spirit as the header's trust badges — set dressing for the
+  // "ClearPath Insurance" placeholder brand (explicitly a stand-in, not a
+  // real company). Nav links are non-navigating by design (no routes
+  // exist for them); legal copy is generic boilerplate-flavored text, not
+  // modeled on any real insurer's actual disclosures.
+  const siteFooter = (
+    <footer className="site-footer">
+      <nav className="site-footer-nav" aria-label="Footer">
+        <a href="#" onClick={(e) => e.preventDefault()}>Our Story</a>
+        <a href="#" onClick={(e) => e.preventDefault()}>About ClearPath</a>
+        <a href="#" onClick={(e) => e.preventDefault()}>Jobs at ClearPath</a>
+        <a href="#" onClick={(e) => e.preventDefault()}>Support</a>
+        <a href="#" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
+        <a href="#" onClick={(e) => e.preventDefault()}>Terms of Use</a>
+      </nav>
+      <p className="site-footer-legal">
+        ClearPath Insurance Agency, LLC is a licensed insurance agency. Products and coverage availability vary by
+        state and are subject to underwriting review and approval. Rates, discounts, and policy terms shown or
+        described are illustrative examples only and are not a quote, binder, or offer of insurance. Coverage is
+        bound only upon acceptance by an authorized insurer and issuance of a policy. This site is a demonstration
+        and does not create, modify, or bind any actual insurance policy.
+      </p>
+      <p className="site-footer-copyright">© {new Date().getFullYear()} ClearPath Insurance Agency, LLC. All rights reserved.</p>
+    </footer>
+  );
+
+  // Two floating launcher buttons (bottom-right, like a real support
+  // widget) that open a small static panel — a single canned opening
+  // message, a disabled-looking input, no actual send. Nothing behind it
+  // is real; it's here purely to round out the "real-looking site" set
+  // dressing started with the header/trust-badges/footer.
+  const supportWidget = (
+    <div className="support-widget">
+      {activeWidget !== 'none' && (
+        <div className="support-panel">
+          <div className="support-panel-header">
+            <span>{activeWidget === 'chat' ? 'ClearPath Support' : 'ClearPath AI Assistant'}</span>
+            <button
+              type="button"
+              className="support-panel-close"
+              aria-label="Close"
+              onClick={() => setActiveWidget('none')}
+            >
+              ×
+            </button>
+          </div>
+          <div className="support-panel-body">
+            <p className="support-message">
+              {activeWidget === 'chat'
+                ? "Hi! Thanks for reaching out to ClearPath Insurance. A representative will be with you shortly."
+                : "Hi, I'm the ClearPath AI Assistant. I can walk you through this application — ask me anything about a question on the page."}
+            </p>
+          </div>
+          <form
+            className="support-panel-input-row"
+            onSubmit={(e) => e.preventDefault()}
+          >
+            <input type="text" placeholder="Type a message…" disabled />
+            <button type="submit" disabled>
+              Send
+            </button>
+          </form>
+        </div>
+      )}
+      <div className="support-fab-row">
+        <button
+          type="button"
+          className={`support-fab${activeWidget === 'ai' ? ' active' : ''}`}
+          onClick={() => setActiveWidget((prev) => (prev === 'ai' ? 'none' : 'ai'))}
+        >
+          🤖 AI Assistant
+        </button>
+        <button
+          type="button"
+          className={`support-fab${activeWidget === 'chat' ? ' active' : ''}`}
+          onClick={() => setActiveWidget((prev) => (prev === 'chat' ? 'none' : 'chat'))}
+        >
+          💬 Live Chat
+        </button>
+      </div>
+    </div>
+  );
+
   const topBar = (
     <div className="top-bar">
       <button className="link-button" onClick={goBack} disabled={answeredCount === 0}>
@@ -428,9 +521,17 @@ export default function App() {
     </button>
   );
 
+  // Previously wrapped in a full-viewport "backdrop" div (click-outside
+  // closes, modal-style) — but since the sidebar now defaults to *open*
+  // and is meant to be a persistent companion panel rather than a
+  // transient drawer, that backdrop sat over the entire main content area
+  // (a `position: fixed` element paints above static in-flow content
+  // regardless of DOM order) and closed the sidebar on literally any
+  // click in the question flow — reported by the user as "keeps hiding if
+  // you click anywhere in the main frame." Dropped the backdrop; the
+  // toggle button is now the only way to open/close it.
   const progressSidebar = (
     <>
-      {sidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
       <div className={`progress-sidebar${sidebarOpen ? ' open' : ''}`}>
         <h2 className="progress-sidebar-heading">Your progress</h2>
         {QUESTIONS
@@ -505,6 +606,8 @@ export default function App() {
           Download XML
         </button>
         </div>
+        {siteFooter}
+        {supportWidget}
       </>
     );
   }
@@ -670,7 +773,19 @@ export default function App() {
       )}
 
       {node.type === 'fieldGroup' && (
-        <div className="field-group">
+        // A real <form>, not a div with an onClick button — same reason the
+        // text/number/location screens use one: Enter should submit
+        // whenever the primary action is enabled, not just advance via
+        // mouse click. (User feedback: "clicking Enter should activate the
+        // 'Next' button if it's enabled" — this was the one screen type
+        // that didn't.)
+        <form
+          className="field-group"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (fieldGroupComplete) commit(fieldGroupDraft);
+          }}
+        >
           {node.fields?.map((f) => (
             <label key={f.id}>
               {f.label}
@@ -713,11 +828,11 @@ export default function App() {
             </label>
           ))}
           <div className="button-row">
-            <button disabled={!fieldGroupComplete} onClick={() => commit(fieldGroupDraft)}>
+            <button type="submit" disabled={!fieldGroupComplete}>
               Next
             </button>
           </div>
-        </div>
+        </form>
       )}
       {error && <p className="field-error">{error}</p>}
 
@@ -771,7 +886,20 @@ export default function App() {
           )}
 
           {showAddForm ? (
-            <div className="repeating-add-form">
+            // Same reasoning as the fieldGroup form above — a real <form>
+            // so Enter submits "Add" once the entry's required fields (and
+            // any field-level validation) are satisfied.
+            <form
+              className="repeating-add-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!groupFieldsComplete) return;
+                setGroupEntries((prev) => [...prev, groupDraft]);
+                setGroupDraft(emptyEntry(node.fields));
+                setShowAddForm(false);
+                setNoneConfirmed(false);
+              }}
+            >
               {node.fields?.map((f) => (
                 <label key={f.id}>
                   {f.label}
@@ -807,18 +935,15 @@ export default function App() {
                 </label>
               ))}
               <div className="button-row">
-                <button
-                  disabled={!groupFieldsComplete}
-                  onClick={() => {
-                    setGroupEntries((prev) => [...prev, groupDraft]);
-                    setGroupDraft(emptyEntry(node.fields));
-                    setShowAddForm(false);
-                    setNoneConfirmed(false);
-                  }}
-                >
+                <button type="submit" disabled={!groupFieldsComplete}>
                   Add
                 </button>
+                {/* type="button" is load-bearing here — a plain <button>
+                    inside a <form> defaults to type="submit", which would
+                    make Cancel also trigger the form's onSubmit (and thus
+                    Add) instead of discarding the draft. */}
                 <button
+                  type="button"
                   className="link-button"
                   onClick={() => {
                     setGroupDraft(emptyEntry(node.fields));
@@ -828,7 +953,7 @@ export default function App() {
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           ) : (
             <div className="button-row">
               <button onClick={() => setShowAddForm(true)}>{node.addButtonText ?? '+ Add'}</button>
@@ -867,6 +992,8 @@ export default function App() {
         </p>
       )}
       </div>
+      {siteFooter}
+      {supportWidget}
     </>
   );
 }
