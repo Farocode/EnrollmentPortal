@@ -89,6 +89,14 @@ export interface QuestionNode {
   // single screen (e.g. First/Middle/Last/Suffix). Answer stored as a
   // plain object, not an array.
   fields?: RepeatingFieldDef[];
+  // repeatingGroup only — heading shown above the list of added entries
+  // (e.g. "Household members added"), and the label on the add button
+  // (e.g. "+ Add household member", including the leading "+ Add "). Both
+  // default to generic text in the UI when omitted, so existing nodes
+  // (household drivers) keep their current copy by setting these
+  // explicitly rather than relying on a shared hardcoded string.
+  listHeading?: string;
+  addButtonText?: string;
 }
 
 export interface FlowStepResult {

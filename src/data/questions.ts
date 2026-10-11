@@ -69,6 +69,8 @@ export const QUESTIONS: QuestionNode[] = [
     prompt: 'Does anyone else in your household drive, or drive this car regularly?',
     helpText: "Add each person — name, relation, and date of birth. It's fine to add none.",
     required: false,
+    listHeading: 'Household members added',
+    addButtonText: '+ Add household member',
     fields: [
       { id: 'firstName', label: 'First name', type: 'text', required: true, uppercase: true },
       { id: 'lastName', label: 'Last name', type: 'text', required: true, uppercase: true },
@@ -182,6 +184,31 @@ export const QUESTIONS: QuestionNode[] = [
     condition: (a) => a.primaryUse === 'rideshare',
   },
   // --- end rideshare sub-flow ---
+  {
+    id: 'drivingRecord',
+    section: 'coverage',
+    type: 'repeatingGroup',
+    prompt: 'Any accidents or violations in the past 3–5 years?',
+    helpText: "Add each one — type, date, and a brief description. It's fine to add none.",
+    required: false,
+    listHeading: 'Incidents added',
+    addButtonText: '+ Add incident',
+    fields: [
+      {
+        id: 'incidentType',
+        label: 'Type',
+        type: 'select',
+        required: true,
+        options: [
+          { value: 'at_fault_accident', label: 'At-fault accident' },
+          { value: 'moving_violation', label: 'Moving violation' },
+          { value: 'major_infraction', label: 'Major infraction (e.g. DUI)' },
+        ],
+      },
+      { id: 'date', label: 'Date', type: 'date', required: true },
+      { id: 'description', label: 'Brief description', type: 'text', required: false, maxLength: 120 },
+    ],
+  },
   {
     id: 'priorInsuranceStatus',
     section: 'coverage',

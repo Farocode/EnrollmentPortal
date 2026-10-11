@@ -35,7 +35,14 @@ interface ZippopotamResponse {
 }
 
 /**
- * Resolves a ZIP to { city, state }.
+ * Resolves a ZIP to every place Zippopotam.us's data has for it.
+ *
+ * Returns an array rather than a single location: the overwhelming
+ * majority of ZIPs have exactly one place, but some genuinely span more
+ * than one city/state (e.g. Fort Campbell, straddling the KY/TN border
+ * under ZIP 42223) — the caller decides what to do with a one-entry vs.
+ * multi-entry result, rather than this function silently picking the
+ * first and hiding the ambiguity.
  *
  * Returns null for a well-formed request that simply has no match (an
  * invalid/unrecognized ZIP, or a malformed 5-digit string) — the caller
@@ -45,17 +52,17 @@ interface ZippopotamResponse {
  * error) — the caller should treat that as a distinct "couldn't reach the
  * lookup service" state, not the same as "ZIP not recognized."
  */
-export async function resolveZip(zip: string): Promise<ZipLocation | null> {
+export async function resolveZip(zip: string): Promise<ZipLocation[] | null> {
   const trimmed = zip.trim();
-  if (ZIP_OVERRIDES[trimmed]) return ZIP_OVERRIDES[trimmed];
+  if (ZIP_OVERRIDES[trimmed]) return [ZIP_OVERRIDES[trimmed]];
   if (!/^\d{5}$/.test(trimmed)) return null;
 
   const res = await fetch(`https://api.zippopotam.us/us/${trimmed}`);
   if (!res.ok) return null; // 404 = not a recognized US ZIP, not an error
 
   const data = (await res.json()) as ZippopotamResponse;
-  const place = data.places?.[0];
-  if (!place) return null;
+  const places = data.places;
+  if (!places || places.length === 0) return null;
 
-  return { city: place['place name'], state: place['state abbreviation'] };
+  return places.map((place) => ({ city: place['place name'], state: place['state abbreviation'] }));
 }

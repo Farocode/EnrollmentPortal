@@ -16,17 +16,31 @@ import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
 // was against the old hardcoded table. `zip` on this record is which ZIP
 // the status/result belongs to, so a still-in-flight request for a ZIP the
 // user has since changed can be told apart from the current one.
+//
+// `result` is an array because a ZIP can genuinely resolve to more than
+// one place (e.g. Fort Campbell, straddling the KY/TN border) — the
+// overwhelming majority of the time it's a single-entry array, which is
+// treated as the direct "here's your city/state" case exactly like
+// before; more than one entry means the location-confirm screen needs to
+// ask which one applies instead of silently picking the first.
 type ZipStatus = 'idle' | 'loading' | 'done' | 'notfound' | 'error';
 interface ZipResolution {
   zip: string;
   status: ZipStatus;
-  result: ZipLocation | null;
+  result: ZipLocation[] | null;
 }
 
 function useFlowContext(answers: Answers, zipRes: ZipResolution): FlowContext {
   return useMemo(() => {
     const zip = typeof answers.zip === 'string' ? answers.zip : '';
-    const resolved = zip && zipRes.zip === zip && zipRes.status === 'done' ? zipRes.result : null;
+    // Only auto-derive from a single unambiguous match — a multi-place
+    // result stays undefined here until the user picks one, at which
+    // point it's recorded in `answers.city`/`answers.state` directly
+    // (see confirmLocation) and this branch is no longer consulted.
+    const resolved =
+      zip && zipRes.zip === zip && zipRes.status === 'done' && zipRes.result?.length === 1
+        ? zipRes.result[0]
+        : null;
     const state = (answers.state as string | undefined) ?? resolved?.state;
     const city = (answers.city as string | undefined) ?? resolved?.city;
     return { state, city, stateConfig: state ? STATE_CONFIG[state] : undefined };
@@ -88,11 +102,27 @@ function applyFieldTransform(field: RepeatingFieldDef, raw: string): string {
   return v;
 }
 
+// Collapsed/expanded state for the progress sidebar is a lightweight
+// per-viewer UI preference, not app data — localStorage is appropriate
+// here the same way it wouldn't be for anything shared or durable. Reads
+// and writes are wrapped since storage can throw or be unavailable (private
+// browsing, blocked site data).
+const SIDEBAR_STORAGE_KEY = 'enrollmentPortal.sidebarOpen';
+
+function readStoredSidebarOpen(): boolean {
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return raw === null ? false : raw === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const [answers, setAnswers] = useState<Answers>({});
   const [draft, setDraft] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [showOverview, setShowOverview] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(readStoredSidebarOpen);
   const [confirmReset, setConfirmReset] = useState(false);
 
   // repeatingGroup-only local state
@@ -160,15 +190,17 @@ export default function App() {
   // The ZIP lookup often resolves *after* the location screen is already
   // showing (real network round-trip vs. the old instant table read) — once
   // it comes in, fill the draft in too, but only if the user hasn't already
-  // started typing over it.
+  // started typing over it. Only auto-fills for an unambiguous single
+  // match — a multi-place result is left for the user to pick from (see
+  // the zip-multi-options UI below), which fills the draft itself once a
+  // choice is made.
   useEffect(() => {
     if (node?.type !== 'location') return;
-    if (zipRes.status !== 'done' || !zipRes.result) return;
+    if (zipRes.status !== 'done' || !zipRes.result || zipRes.result.length !== 1) return;
     if (zipRes.zip !== answers.zip) return;
+    const only = zipRes.result[0];
     setLocationDraft((prev) =>
-      prev.city === '' && prev.state === ''
-        ? { city: zipRes.result!.city.toUpperCase(), state: zipRes.result!.state }
-        : prev
+      prev.city === '' && prev.state === '' ? { city: only.city.toUpperCase(), state: only.state } : prev
     );
   }, [zipRes, node?.type, answers.zip]);
 
@@ -194,7 +226,20 @@ export default function App() {
     setAnswers((prev) => truncateAt(prev, id));
     setDraft('');
     setError(null);
-    setShowOverview(false);
+    setSidebarOpen(false);
+  }
+
+  function toggleSidebar() {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        // best-effort; a viewer with storage blocked just won't have the
+        // open/closed state remembered next visit
+      }
+      return next;
+    });
   }
 
   function resetAll() {
@@ -206,7 +251,7 @@ export default function App() {
     setDraft('');
     setError(null);
     setConfirmReset(false);
-    setShowOverview(false);
+    setSidebarOpen(false);
   }
 
   function handleDraftChange(raw: string) {
@@ -259,52 +304,74 @@ export default function App() {
       <button className="link-button" onClick={goBack} disabled={answeredCount === 0}>
         ← Back
       </button>
-      <button className="link-button" onClick={() => setShowOverview((s) => !s)}>
-        {showOverview ? 'Hide question list' : 'Show question list'}
-      </button>
       <button className="link-button danger" onClick={resetAll}>
         {confirmReset ? 'Click again to confirm' : 'Start over'}
       </button>
     </div>
   );
 
-  const overviewPanel = showOverview && (
-    <div className="overview">
-      {QUESTIONS.map((q) => {
-        const isAnswered = q.id in answers;
-        const isSkippedSoFar = !isAnswered && q.condition && !q.condition(answers, ctx);
-        const isCurrent = node?.id === q.id;
-        const displayValue =
-          q.type === 'fieldGroup' && q.fields
-            ? q.fields
-                .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
-                .filter(Boolean)
-                .join(' ')
-            : formatValue(answers[q.id]);
-        return (
-          <div
-            key={q.id}
-            className={`overview-row${isCurrent ? ' current' : ''}${isSkippedSoFar ? ' skipped' : ''}`}
-          >
-            <span className="overview-prompt">{q.prompt}</span>
-            {isAnswered ? (
-              <>
-                <span className="overview-status">{displayValue}</span>
-                <button className="link-button" onClick={() => jumpTo(q.id)}>
+  // Persistent, collapsible progress rail — replaces the old click-to-reveal
+  // "Show question list" inline panel (same underlying per-question status
+  // computation, same Edit/jump behavior) with a drawer that overlays the
+  // content rather than pushing it down, so the centered single-column
+  // layout is unchanged when the rail is closed. Open/closed state persists
+  // across visits via localStorage (see readStoredSidebarOpen above).
+  const sidebarToggle = (
+    <button
+      type="button"
+      className="sidebar-toggle"
+      onClick={toggleSidebar}
+      aria-label={sidebarOpen ? 'Hide question list' : 'Show question list'}
+      aria-expanded={sidebarOpen}
+    >
+      {sidebarOpen ? '‹' : '☰'}
+    </button>
+  );
+
+  const progressSidebar = (
+    <>
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={toggleSidebar} />}
+      <div className={`progress-sidebar${sidebarOpen ? ' open' : ''}`}>
+        <h2 className="progress-sidebar-heading">Your progress</h2>
+        {QUESTIONS.map((q) => {
+          const isAnswered = q.id in answers;
+          const isSkippedSoFar = !isAnswered && q.condition && !q.condition(answers, ctx);
+          const isCurrent = node?.id === q.id;
+          const displayValue =
+            q.type === 'fieldGroup' && q.fields
+              ? q.fields
+                  .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
+                  .filter(Boolean)
+                  .join(' ')
+              : formatValue(answers[q.id]);
+          // Condensed status glyph so a row stays legible as a narrow rail
+          // item: ✓ answered, a filled dot for the current question, an
+          // em-dash for skipped-so-far, a mid-dot for not-reached-yet.
+          const glyph = isAnswered ? '✓' : isCurrent ? '●' : isSkippedSoFar ? '—' : '·';
+          return (
+            <div
+              key={q.id}
+              className={`sidebar-row${isCurrent ? ' current' : ''}${isSkippedSoFar ? ' skipped' : ''}${
+                isAnswered ? ' answered' : ''
+              }`}
+            >
+              <span className="sidebar-row-glyph" aria-hidden="true">
+                {glyph}
+              </span>
+              <span className="sidebar-row-label" title={q.prompt}>
+                {q.prompt}
+                {isAnswered && <span className="sidebar-row-value"> — {displayValue}</span>}
+              </span>
+              {isAnswered && (
+                <button className="link-button sidebar-row-edit" onClick={() => jumpTo(q.id)}>
                   Edit
                 </button>
-              </>
-            ) : isSkippedSoFar ? (
-              <span className="overview-status muted">Not needed (so far)</span>
-            ) : isCurrent ? (
-              <span className="overview-status">Up next</span>
-            ) : (
-              <span className="overview-status muted">Not reached yet</span>
-            )}
-          </div>
-        );
-      })}
-    </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 
   if (!node) {
@@ -312,9 +379,10 @@ export default function App() {
     return (
       <>
         {siteHeader}
+        {sidebarToggle}
+        {progressSidebar}
         <div className="shell">
         {topBar}
-        {overviewPanel}
         <h1>All done</h1>
         <p>Here's the handoff document that would go downstream:</p>
         <pre className="xml-output">
@@ -346,12 +414,25 @@ export default function App() {
     node.type === 'fieldGroup' &&
     (node.fields ?? []).every((f) => !f.required || (fieldGroupDraft[f.id] ?? '').trim() !== '');
 
+  // A ZIP that genuinely resolves to more than one place (e.g. Fort
+  // Campbell, straddling the KY/TN border) — null unless there's a
+  // current, settled, multi-entry result to choose between.
+  const zipMultiPlaces: ZipLocation[] | null =
+    node.type === 'location' &&
+    zipRes.status === 'done' &&
+    zipRes.zip === answers.zip &&
+    zipRes.result &&
+    zipRes.result.length > 1
+      ? zipRes.result
+      : null;
+
   return (
     <>
       {siteHeader}
+      {sidebarToggle}
+      {progressSidebar}
       <div className="shell">
       {topBar}
-      {overviewPanel}
       <div className="progress">{answeredCount + 1} of ~{QUESTIONS.length}</div>
       <h1>{node.prompt}</h1>
       {node.helpText && <p className="help">{node.helpText}</p>}
@@ -369,10 +450,25 @@ export default function App() {
               ? 'Looking that up…'
               : zipRes.status === 'error' && zipRes.zip === answers.zip
               ? "Couldn't reach the ZIP lookup service — enter manually below."
+              : zipMultiPlaces
+              ? 'This ZIP matches more than one place — which is right?'
               : ctx.city
               ? `${ctx.city}, ${ctx.state}`
               : 'ZIP not recognized — enter manually below.'}
           </p>
+          {zipMultiPlaces && (
+            <div className="button-row">
+              {zipMultiPlaces.map((place, i) => (
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => setLocationDraft({ city: place.city.toUpperCase(), state: place.state })}
+                >
+                  {place.city}, {place.state}
+                </button>
+              ))}
+            </div>
+          )}
           <label>
             City
             <input
@@ -473,7 +569,7 @@ export default function App() {
 
       {node.type === 'repeatingGroup' && (
         <div className="repeating-group">
-          <h3 className="repeating-heading">Household members added</h3>
+          <h3 className="repeating-heading">{node.listHeading ?? 'Added'}</h3>
 
           {groupEntries.length > 0 ? (
             <div className="repeating-entries">
@@ -556,7 +652,7 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <button onClick={() => setShowAddForm(true)}>+ Add household member</button>
+            <button onClick={() => setShowAddForm(true)}>{node.addButtonText ?? '+ Add'}</button>
           )}
 
           <div className="button-row">
