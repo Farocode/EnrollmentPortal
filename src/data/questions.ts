@@ -189,6 +189,10 @@ export const QUESTIONS: QuestionNode[] = [
     prompt: 'What make?',
     shortLabel: 'Vehicle make',
     optionGroups: VEHICLE_MAKE_GROUPS,
+    // The list itself is now all caps (see vehicleMakes.ts) to match
+    // vehicleModel's forced-uppercase text entry; this covers a
+    // free-typed make that isn't in the list, so it comes out the same way.
+    uppercase: true,
   },
   { id: 'vehicleModel', section: 'vehicle', type: 'text', prompt: 'What model?', shortLabel: 'Vehicle model', maxLength: 60, uppercase: true },
   {

@@ -536,7 +536,15 @@ export default function App() {
                     .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
                     .filter(Boolean)
                     .join(' ')
-                : formatValue(answers[q.id]);
+                : // confirmLocation() stores the location question's own
+                  // answer as a bare `true` (it's just a confirmation
+                  // step) — the actual city/state live in separate
+                  // `answers.city`/`answers.state` entries. Without this,
+                  // formatValue's boolean branch would show "Yes" here
+                  // instead of the place the user actually confirmed.
+                  q.type === 'location'
+                  ? [answers.city, answers.state].filter(Boolean).join(', ')
+                  : formatValue(answers[q.id]);
             const glyph = isAnswered ? '✓' : '●';
             return (
               <div key={q.id} className={`sidebar-row${isCurrent ? ' current' : ''}${isAnswered ? ' answered' : ''}`}>
@@ -666,6 +674,7 @@ export default function App() {
       {node.type === 'location' && (
         <form
           className="location-confirm"
+          autoComplete="off"
           onSubmit={(e) => {
             e.preventDefault();
             confirmLocation();
@@ -697,7 +706,20 @@ export default function App() {
           )}
           <label>
             City
+            {/* name/autoComplete deliberately don't say "city": Safari
+                treats autocomplete="off" as a hint it's allowed to ignore
+                for anything it pattern-matches as a physical-address
+                field (a documented, long-standing WebKit policy, not a
+                bug — see the color-scheme/autofill-icon fix above for the
+                same browser's autofill behavior biting us elsewhere). When
+                it decides that and shows its own AutoFill suggestion UI,
+                that overlay can eat the next Tab/Return itself instead of
+                letting it reach "Looks right" — reported as "can't even
+                tab to it". A neutral, non-address-shaped name/autoComplete
+                value keeps Safari from recognizing the field as one in the
+                first place. */}
             <input
+              name="place-city"
               value={locationDraft.city}
               autoComplete="off"
               autoCorrect="off"
@@ -709,6 +731,7 @@ export default function App() {
           <label>
             State
             <input
+              name="place-region"
               value={locationDraft.state}
               maxLength={2}
               autoComplete="off"
