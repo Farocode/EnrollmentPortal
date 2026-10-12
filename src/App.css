@@ -13,6 +13,13 @@
   width: 100%;
   max-width: 420px;
   height: auto;
+  /* The logo PNG is dark blue artwork made for a light page. In dark theme
+     --header-plate is a light tint so the wordmark and badge captions stay
+     readable; it's transparent in light theme. */
+  background: var(--header-plate);
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  box-sizing: border-box;
 }
 .site-footer {
   margin-top: 3rem;
@@ -192,17 +199,20 @@ button.support-fab-highlight:hover:not(:disabled) {
   border: none;
   padding: 0;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--text);
   cursor: pointer;
   text-decoration: underline;
 }
+.link-button:hover:not(:disabled) {
+  color: var(--text-h);
+}
 .link-button:disabled {
-  color: #ccc;
+  color: var(--border-strong);
   cursor: default;
   text-decoration: none;
 }
 .link-button.danger {
-  color: #a4262c;
+  color: var(--danger);
   margin-left: auto;
 }
 /* Persistent collapsible progress rail — overlays the content as a drawer
@@ -306,14 +316,15 @@ button.support-fab-highlight:hover:not(:disabled) {
 .sidebar-row-edit {
   flex: 0 0 auto;
   font-size: 0.75rem;
+  color: var(--text-h);
 }
 .progress {
-  color: #888;
+  color: var(--text);
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
 }
 .help {
-  color: #666;
+  color: var(--text);
   font-size: 0.9rem;
 }
 /* A small note scoped to one field inside a fieldGroup/repeatingGroup
@@ -325,7 +336,7 @@ button.support-fab-highlight:hover:not(:disabled) {
   font-style: italic;
 }
 .skip-note {
-  color: #bbb;
+  color: var(--text);
   font-size: 0.75rem;
   margin-top: 2rem;
 }
@@ -473,6 +484,7 @@ button:not(.link-button):disabled {
   flex-direction: column;
   font-size: 0.85rem;
   gap: 0.25rem;
+  text-align: left;
 }
 .all-done-message {
   font-size: 1.05rem;
@@ -522,7 +534,7 @@ button:not(.link-button):disabled {
 .xml-decl { color: var(--xml-punc); font-style: italic; }
 .xml-text { color: var(--xml-text); }
 .field-error {
-  color: #a4262c;
+  color: var(--danger);
   font-size: 0.85rem;
   margin-top: 0.5rem;
 }
@@ -541,7 +553,7 @@ button:not(.link-button):disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #e5e4e7;
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
@@ -550,7 +562,7 @@ button:not(.link-button):disabled {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  border: 1px dashed #ccc;
+  border: 1px dashed var(--border-strong);
   border-radius: 6px;
   padding: 1rem;
 }
@@ -559,11 +571,12 @@ button:not(.link-button):disabled {
   flex-direction: column;
   font-size: 0.85rem;
   gap: 0.25rem;
+  text-align: left;
 }
 .repeating-heading {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #444;
+  color: var(--text-h);
   margin: 0;
 }
 .date-segmented {
@@ -580,11 +593,11 @@ button:not(.link-button):disabled {
   width: 4.4rem;
 }
 .date-segmented span {
-  color: #999;
+  color: var(--text);
 }
 .repeating-add-form select {
-  padding: 0.5rem;
-  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
 }
 .field-group {
   display: flex;
@@ -597,8 +610,70 @@ button:not(.link-button):disabled {
   flex-direction: column;
   font-size: 0.85rem;
   gap: 0.25rem;
+  text-align: left;
 }
 .field-group select {
-  padding: 0.5rem;
-  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
+}
+/* Multi-column card (e.g. First / Middle / Last / Suffix on one row).
+   Fields stay in declared order so tab order matches what you see; the
+   button row spans the full width. One column on a phone. */
+.field-group-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+  gap: 0.9rem;
+}
+.field-group-grid .button-row {
+  grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .field-group-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Primary action (Next, Continue, Add, Looks right, Download XML): a solid
+   accent fill so the one button that moves you forward reads differently
+   from the neutral outlined choice buttons beside it. */
+button.btn-primary {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+button.btn-primary:hover:not(:disabled) {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
+  filter: brightness(1.1);
+}
+
+/* Visible keyboard focus in the accent color, for every control. */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent-solid);
+  outline-offset: 2px;
+}
+input:focus-visible,
+select:focus-visible {
+  border-color: var(--accent-solid);
+}
+
+/* Phone: the fixed menu/theme buttons get their own strip above the logo
+   instead of sitting on it, the question starts higher, and the footer
+   leaves room so the fixed Support button doesn't cover its last links. */
+@media (max-width: 640px) {
+  .site-header {
+    padding-top: 4rem;
+  }
+  .shell {
+    margin: 0.5rem auto 2rem;
+    padding: 1rem;
+  }
+  .site-footer {
+    padding-bottom: 6rem;
+  }
 }

@@ -13,7 +13,10 @@ export function highlightXml(xml: string): string {
     if (match[1]) {
       out += highlightTag(match[1]);
     } else if (match[2]) {
-      out += `<span class="xml-text">${match[2]}</span>`;
+      // <wbr> after commas gives long comma-joined values (branchPath) a
+      // clean place to wrap in the on-screen view. Display only — the
+      // downloaded XML is the untouched compileXml() string.
+      out += `<span class="xml-text">${match[2].replace(/,/g, ',<wbr>')}</span>`;
     }
   }
   return out;

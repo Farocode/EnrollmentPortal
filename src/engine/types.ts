@@ -140,6 +140,15 @@ export interface QuestionNode {
   // explicitly rather than relying on a shared hardcoded string.
   listHeading?: string;
   addButtonText?: string;
+
+  // 'number' only — show the stored value with thousands separators
+  // wherever it's displayed (e.g. 12,000 for annual mileage). Opt-in per
+  // question so values like a vehicle year never get "2,014".
+  groupThousands?: boolean;
+  // fieldGroup only — lay the fields out in this many columns on wide
+  // screens (collapses to one column on a phone). Fields keep their
+  // declared order, so tab order and XML order stay unchanged.
+  columns?: number;
 }
 
 export interface FlowStepResult {

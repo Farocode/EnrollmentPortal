@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import './App.css';
 import headerLogo from './assets/header-clearpath.png';
 import { QUESTIONS } from './data/questions';
@@ -10,7 +10,7 @@ import { highlightXml } from './engine/xmlHighlight';
 import { DateSegmentedInput } from './components/DateSegmentedInput';
 import { ComboboxInput } from './components/ComboboxInput';
 import { stripToPattern } from './engine/validators';
-import type { Answers, FlowContext, RepeatingFieldDef } from './engine/types';
+import type { Answers, FlowContext, QuestionNode, RepeatingFieldDef } from './engine/types';
 
 // resolveZip() is async (a real API call), so the lookup result lives in
 // its own bit of state rather than being derived synchronously the way it
@@ -97,14 +97,24 @@ function reconcileEdit(oldAnswers: Answers, editedId: string, newValue: unknown,
   return next;
 }
 
-function formatValue(v: unknown): string {
+function formatValue(v: unknown, q?: QuestionNode): string {
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
   if (Array.isArray(v)) return v.length === 0 ? 'None added' : `${v.length} added`;
-  // Numbers (e.g. annual mileage) are stored plain, comma-free, for XML —
-  // re-add thousands separators for display so it reads the way the user
-  // typed it.
-  if (typeof v === 'number') return v.toLocaleString();
+  // Numbers are stored plain, comma-free, for XML. Questions that opt in
+  // (groupThousands, e.g. annual mileage) get separators back for display;
+  // everything else — a vehicle year, say — stays as typed.
+  if (typeof v === 'number') return q?.groupThousands ? v.toLocaleString() : String(v);
   return String(v);
+}
+
+// Developer aid, off for customers: add ?debug to the URL to show the
+// "skipped so far" line under each question.
+function isDebugMode(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has('debug');
+  } catch {
+    return false;
+  }
 }
 
 // Friendly display for one subfield of a repeating-group entry (used on
@@ -634,7 +644,7 @@ export default function App() {
                 ? q.fields
                     .map((f) => formatEntryField(f, (answers[q.id] as RepeatingEntry | undefined)?.[f.id] ?? ''))
                     .filter(Boolean)
-                    .join(' ')
+                    .join(' · ')
                 : // confirmLocation() stores the location question's own
                   // answer as a bare `true` (it's just a confirmation
                   // step) — the actual city/state live in separate
@@ -643,7 +653,11 @@ export default function App() {
                   // instead of the place the user actually confirmed.
                   q.type === 'location'
                   ? [answers.city, answers.state].filter(Boolean).join(', ')
-                  : formatValue(answers[q.id]);
+                  : // Show the option's label ("Own a home"), not its stored
+                    // value ("own_home") — same as the household cards do.
+                    q.type === 'select'
+                    ? (q.options?.find((o) => o.value === answers[q.id])?.label ?? formatValue(answers[q.id], q))
+                    : formatValue(answers[q.id], q);
             const glyph = isAnswered ? '✓' : '●';
             return (
               <div key={q.id} className={`sidebar-row${isCurrent ? ' current' : ''}${isAnswered ? ' answered' : ''}`}>
@@ -689,6 +703,7 @@ export default function App() {
           <code dangerouslySetInnerHTML={{ __html: highlightXml(xml) }} />
         </pre>
         <button
+          className="btn-primary"
           onClick={() => {
             const blob = new Blob([xml], { type: 'application/xml' });
             const url = URL.createObjectURL(blob);
@@ -876,7 +891,7 @@ export default function App() {
               }}
             />
           </label>
-          <button type="submit">Looks right</button>
+          <button type="submit" className="btn-primary">Looks right</button>
         </form>
       )}
 
@@ -911,7 +926,7 @@ export default function App() {
               onChange={(e) => handleDraftChange(e.target.value)}
             />
           )}
-          <button type="submit">Next</button>
+          <button type="submit" className="btn-primary">Next</button>
         </form>
       )}
 
@@ -923,7 +938,8 @@ export default function App() {
         // 'Next' button if it's enabled" — this was the one screen type
         // that didn't.)
         <form
-          className="field-group"
+          className={`field-group${node.columns ? ' field-group-grid' : ''}`}
+          style={node.columns ? ({ '--cols': node.columns } as CSSProperties) : undefined}
           onSubmit={(e) => {
             e.preventDefault();
             if (fieldGroupComplete) commit(fieldGroupDraft);
@@ -972,7 +988,7 @@ export default function App() {
             </label>
           ))}
           <div className="button-row">
-            <button type="submit" disabled={!fieldGroupComplete}>
+            <button type="submit" className="btn-primary" disabled={!fieldGroupComplete}>
               Next
             </button>
           </div>
@@ -1080,7 +1096,7 @@ export default function App() {
                 </label>
               ))}
               <div className="button-row">
-                <button type="submit" disabled={!groupFieldsComplete}>
+                <button type="submit" className="btn-primary" disabled={!groupFieldsComplete}>
                   Add
                 </button>
                 {/* type="button" is load-bearing here — a plain <button>
@@ -1122,6 +1138,7 @@ export default function App() {
 
           <div className="button-row">
             <button
+              className="btn-primary"
               disabled={node.required === false && groupEntries.length === 0 && !noneConfirmed}
               onClick={() => commit(groupEntries)}
             >
@@ -1131,7 +1148,7 @@ export default function App() {
         </div>
       )}
 
-      {skippedIds.length > 0 && (
+      {isDebugMode() && skippedIds.length > 0 && (
         <p className="skip-note">
           (skipped so far: {skippedIds.join(', ')})
         </p>

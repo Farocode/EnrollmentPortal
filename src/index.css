@@ -28,6 +28,10 @@
   --xml-attrval: #047857;
   --xml-punc: #999;
   --xml-text: #1f2937;
+  --danger: #a4262c;
+  --header-plate: transparent;
+  --accent-solid: #8f2fe0;
+  --on-accent: #fff;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -72,6 +76,10 @@
     --xml-attrval: #34d399;
     --xml-punc: #9ca3af;
     --xml-text: #f3f4f6;
+    --danger: #f87171;
+    --header-plate: #f4f6fb;
+    --accent-solid: #c084fc;
+    --on-accent: #16171d;
   }
 }
 
@@ -93,6 +101,10 @@
   --xml-attrval: #34d399;
   --xml-punc: #9ca3af;
   --xml-text: #f3f4f6;
+  --danger: #f87171;
+  --header-plate: #f4f6fb;
+  --accent-solid: #c084fc;
+  --on-accent: #16171d;
 }
 
 /* `color-scheme: light dark` on :root (above) is what lets a *system*
@@ -131,7 +143,6 @@
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border-strong);
   min-height: 100svh;
   display: flex;
   flex-direction: column;

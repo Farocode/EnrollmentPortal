@@ -22,7 +22,8 @@ export const QUESTIONS: QuestionNode[] = [
     type: 'fieldGroup',
     prompt: "What's your name?",
     shortLabel: 'Name',
-    helpText: 'Split into separate fields so it matches cleanly downstream.',
+    helpText: 'Use your name as it appears on your driver\'s license.',
+    columns: 3,
     fields: [
       { id: 'first', label: 'First name', type: 'text', required: true, uppercase: true, charPattern: NAME_CHAR, maxLength: 40 },
       { id: 'middle', label: 'Middle name', type: 'text', required: false, uppercase: true, charPattern: NAME_CHAR, maxLength: 40 },
@@ -261,6 +262,7 @@ export const QUESTIONS: QuestionNode[] = [
     // toLocaleString() wherever the stored number is displayed, so the
     // front end always shows it comma-grouped the way they'd expect.
     charPattern: /[0-9,]/,
+    groupThousands: true,
   },
   {
     id: 'lowMileageDiscount',
