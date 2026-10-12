@@ -677,3 +677,35 @@ select:focus-visible {
     padding-bottom: 6rem;
   }
 }
+
+/* Orienting label above each question ("About you", "Your vehicle"). */
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-solid);
+  margin-bottom: 0.25rem;
+}
+
+/* Quick fade-in when the question changes (the wrapper is re-keyed per
+   question). Skipped entirely for people who ask their OS for less motion. */
+.question {
+  animation: question-fade 150ms ease-out;
+}
+@keyframes question-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .question { animation: none; }
+}
+
+/* Phone: when the progress drawer is open it covers most of the screen,
+   so the fixed Support button slides behind it instead of floating over
+   the drawer's edge. */
+@media (max-width: 640px) {
+  .support-widget.sidebar-open {
+    z-index: 15;
+  }
+}

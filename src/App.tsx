@@ -10,7 +10,7 @@ import { highlightXml } from './engine/xmlHighlight';
 import { DateSegmentedInput } from './components/DateSegmentedInput';
 import { ComboboxInput } from './components/ComboboxInput';
 import { stripToPattern } from './engine/validators';
-import type { Answers, FlowContext, QuestionNode, RepeatingFieldDef } from './engine/types';
+import type { Answers, FlowContext, QuestionNode, RepeatingFieldDef, Section } from './engine/types';
 
 // resolveZip() is async (a real API call), so the lookup result lives in
 // its own bit of state rather than being derived synchronously the way it
@@ -133,6 +133,16 @@ function formatEntryField(field: RepeatingFieldDef, value: string): string {
 }
 
 type RepeatingEntry = Record<string, string>;
+
+// Small orienting label above each question — branching makes a reliable
+// step count impossible, but the section name still tells people where
+// they are.
+const SECTION_LABELS: Record<Section, string> = {
+  applicant: 'About you',
+  vehicle: 'Your vehicle',
+  coverage: 'Coverage',
+  stateDisclosures: 'State requirements',
+};
 
 // A fresh entry/fieldGroup draft with every declared subfield present (even
 // as ''), so the compiled XML always includes every field the schema
@@ -350,6 +360,17 @@ export default function App() {
 
   const answeredIds = QUESTIONS.filter((q) => q.id in answers).map((q) => q.id);
   const answeredCount = answeredIds.length;
+  // Estimated length of this run: what's answered, plus every unanswered
+  // question whose condition currently passes. Branch questions that
+  // depend on answers not given yet (rideshare follow-ups, the lapse
+  // follow-up) aren't counted until they apply, so the "~" total can tick
+  // up at a branch but no longer starts out padded with questions most
+  // people never see.
+  const estimatedTotal = Math.max(
+    answeredCount + 1,
+    answeredCount +
+      QUESTIONS.filter((q) => !(q.id in answers) && (!q.condition || q.condition(answers, ctx))).length
+  );
 
   function commit(value: unknown) {
     if (!node) return;
@@ -523,7 +544,7 @@ export default function App() {
   // there because a real version of this would have one, not because
   // this one connects anywhere.
   const supportWidget = (
-    <div className="support-widget">
+    <div className={`support-widget${sidebarOpen ? ' sidebar-open' : ''}`}>
       {supportWidgetOpen && (
         <div className="support-panel">
           <div className="support-panel-header">
@@ -781,7 +802,9 @@ export default function App() {
       {progressSidebar}
       <div className="shell">
       {topBar}
-      <div className="progress">{answeredCount + 1} of ~{QUESTIONS.length}</div>
+      <div className="question" key={node.id}>
+      <div className="section-label">{SECTION_LABELS[node.section]}</div>
+      <div className="progress">{answeredCount + 1} of ~{estimatedTotal}</div>
       <h1>{node.prompt}</h1>
       {node.helpText && <p className="help">{node.helpText}</p>}
 
@@ -1149,6 +1172,7 @@ export default function App() {
           (skipped so far: {skippedIds.join(', ')})
         </p>
       )}
+      </div>
       </div>
       {siteFooter}
       {supportWidget}

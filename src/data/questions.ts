@@ -1,5 +1,5 @@
 import type { QuestionNode } from '../engine/types';
-import { NAME_CHAR, ADDRESS_CHAR, validateEmail, formatPhone, validatePhone, validateVehicleYear, validateNotFutureDate } from '../engine/validators';
+import { NAME_CHAR, ADDRESS_CHAR, validateEmail, formatPhone, validatePhone, validateVehicleYear, validateApplicantDob, validateHouseholdDob, validateNotFutureIncidentDate } from '../engine/validators';
 import { VEHICLE_MAKE_GROUPS } from './vehicleMakes';
 
 // Sample flow from the spec, in default order. The engine walks this array
@@ -50,7 +50,7 @@ export const QUESTIONS: QuestionNode[] = [
     type: 'fieldGroup',
     prompt: 'A little about you',
     shortLabel: 'About you',
-    helpText: 'Used to pull a credit-based insurance score and verify identity on real applications — kept light here.',
+    helpText: 'Insurers use these to verify your identity and to rate your policy.',
     fields: [
       {
         id: 'gender',
@@ -76,7 +76,7 @@ export const QUESTIONS: QuestionNode[] = [
           { value: 'widowed', label: 'Widowed' },
         ],
       },
-      { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateNotFutureDate },
+      { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateApplicantDob },
     ],
   },
   {
@@ -166,7 +166,7 @@ export const QUESTIONS: QuestionNode[] = [
           { value: 'female', label: 'Female' },
         ],
       },
-      { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateNotFutureDate },
+      { id: 'dob', label: 'Date of birth', type: 'date', required: true, validate: validateHouseholdDob },
     ],
   },
 
@@ -329,7 +329,7 @@ export const QUESTIONS: QuestionNode[] = [
           { value: 'major_infraction', label: 'Major infraction (e.g. DUI)' },
         ],
       },
-      { id: 'date', label: 'Date', type: 'date', required: true },
+      { id: 'date', label: 'Date', type: 'date', required: true, validate: validateNotFutureIncidentDate },
       { id: 'description', label: 'Brief description', type: 'text', required: false, maxLength: 120 },
     ],
   },

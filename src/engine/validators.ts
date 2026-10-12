@@ -67,6 +67,53 @@ export function validateNotFutureDate(value: string): string | null {
   return null;
 }
 
+// Whole years between an ISO yyyy-mm-dd birth date and today.
+function ageInYears(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age -= 1;
+  return age;
+}
+
+const MAX_PLAUSIBLE_AGE = 110;
+// The applicant is the person buying the policy. 16 is a deliberate
+// simplification (licensing ages run 14-18 depending on the state); it
+// could move into the per-state config later.
+const MIN_APPLICANT_AGE = 16;
+
+// Applicant's own DOB: not in the future, old enough to hold a policy, and
+// not older than any living person is likely to be (a 1732 birthdate used
+// to sail through).
+export function validateApplicantDob(value: string): string | null {
+  const future = validateNotFutureDate(value);
+  if (future) return future;
+  if (!/^(\d{4})-(\d{2})-(\d{2})$/.test(value)) return null;
+  const age = ageInYears(value);
+  if (age > MAX_PLAUSIBLE_AGE) return `Enter a valid date of birth (that would make you over ${MAX_PLAUSIBLE_AGE})`;
+  if (age < MIN_APPLICANT_AGE) return `You must be at least ${MIN_APPLICANT_AGE} to apply`;
+  return null;
+}
+
+// Household member's DOB: no minimum (a young driver on the policy is
+// fine), but the same future/too-old checks.
+export function validateHouseholdDob(value: string): string | null {
+  const future = validateNotFutureDate(value);
+  if (future) return future;
+  if (!/^(\d{4})-(\d{2})-(\d{2})$/.test(value)) return null;
+  if (ageInYears(value) > MAX_PLAUSIBLE_AGE) return `Enter a valid date of birth (over ${MAX_PLAUSIBLE_AGE} years old)`;
+  return null;
+}
+
+// Accident/violation date: can't be in the future.
+export function validateNotFutureIncidentDate(value: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return new Date(value).getTime() > today.getTime() ? "Date can't be in the future" : null;
+}
+
 export function validateVehicleYear(value: string): string | null {
   const year = Number(value);
   const now = new Date().getFullYear();

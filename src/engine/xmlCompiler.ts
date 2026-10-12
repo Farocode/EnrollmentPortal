@@ -59,6 +59,17 @@ export function compileXml(nodes: QuestionNode[], answers: Answers, ctx: FlowCon
         .join('\n');
       return `    <question id="${esc(n.id)}">\n${fields}\n    </question>`;
     }
+    // The location question's own answer is a bare `true` (it's a
+    // confirmation step) — emit the confirmed city/state instead so the
+    // node actually says something downstream.
+    if (n.type === 'location' && value === true) {
+      return [
+        `    <question id="${esc(n.id)}">`,
+        `      <city>${esc(answers.city ?? '')}</city>`,
+        `      <state>${esc(answers.state ?? '')}</state>`,
+        '    </question>',
+      ].join('\n');
+    }
     return `    <question id="${esc(n.id)}">${esc(value)}</question>`;
   };
 
