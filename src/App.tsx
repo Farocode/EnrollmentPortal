@@ -483,27 +483,23 @@ export default function App() {
   // `href="#"` — plain static HTML pages in `public/` (not part of the
   // React app/router, there isn't one), opened with target="_blank" so
   // the app itself is never navigated away from or lost.
+  const footerLink = (file: string, label: string) => (
+    <a href={`${import.meta.env.BASE_URL}${file}`} target="_blank" rel="noopener noreferrer">
+      {label}
+    </a>
+  );
+
+  // Full footer on every screen — the gag pages (Our Story, About, Jobs)
+  // are meant to be findable from the application pages too.
   const siteFooter = (
     <footer className="site-footer">
       <nav className="site-footer-nav" aria-label="Footer">
-        <a href={`${import.meta.env.BASE_URL}our-story.html`} target="_blank" rel="noopener noreferrer">
-          Our Story
-        </a>
-        <a href={`${import.meta.env.BASE_URL}about.html`} target="_blank" rel="noopener noreferrer">
-          About ClearPath
-        </a>
-        <a href={`${import.meta.env.BASE_URL}jobs.html`} target="_blank" rel="noopener noreferrer">
-          Jobs at ClearPath
-        </a>
-        <a href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener noreferrer">
-          Support
-        </a>
-        <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer">
-          Privacy Policy
-        </a>
-        <a href={`${import.meta.env.BASE_URL}terms.html`} target="_blank" rel="noopener noreferrer">
-          Terms of Use
-        </a>
+        {footerLink('our-story.html', 'Our Story')}
+        {footerLink('about.html', 'About ClearPath')}
+        {footerLink('jobs.html', 'Jobs at ClearPath')}
+        {footerLink('support.html', 'Support')}
+        {footerLink('privacy.html', 'Privacy Policy')}
+        {footerLink('terms.html', 'Terms of Use')}
       </nav>
       <p className="site-footer-legal">
         ClearPath Insurance Agency, LLC is a licensed insurance agency. Products and coverage availability vary by
