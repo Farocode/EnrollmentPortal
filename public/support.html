@@ -80,6 +80,19 @@
     color: var(--text-h);
     font-weight: 600;
   }
+  .card-with-qr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+  }
+  /* Always dark-on-white (the SVG carries its own white quiet zone) so it
+     scans in dark mode too. Hidden on a phone, where you'd be scanning
+     the screen you're already holding (narrow screens and touch devices). */
+  .qr { text-align: center; flex: 0 0 auto; }
+  .qr-svg { display: block; width: 112px; height: 112px; border-radius: 6px; }
+  .qr-caption { font-size: 0.7rem; color: var(--text); margin-top: 0.35rem; }
+  @media (max-width: 640px), (hover: none) and (pointer: coarse) { .qr { display: none; } }
   a.phone { color: var(--accent); text-decoration: none; }
   a.phone:hover { text-decoration: underline; }
   .sig {
@@ -117,9 +130,15 @@
 
     <p>ClearPath offers comprehensive customer support through our AI Support Assistant — available right on the homepage, 24 hours a day, and tireless in a way no human support team could ever match. It is, at this time, the only support option we currently offer.</p>
 
-    <div class="card">
-      <div class="label">AI Support Assistant</div>
-      <div class="value"><a class="phone" href="ai-support.html" target="_blank" rel="noopener noreferrer">Open the AI Support Assistant →</a></div>
+    <div class="card card-with-qr">
+      <div>
+        <div class="label">AI Support Assistant</div>
+        <div class="value"><a class="phone" href="ai-support.html" target="_blank" rel="noopener noreferrer">Open the AI Support Assistant →</a></div>
+      </div>
+      <div class="qr">
+        <svg role="img" aria-label="QR code" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" class="qr-svg"><path fill="#fff" d="M0 0h37v37h-37z"/><path stroke="#08060d" d="M2 2.5h7m1 0h3m2 0h2m1 0h1m1 0h1m2 0h2m3 0h7m-33 1h1m5 0h1m1 0h3m1 0h1m3 0h2m2 0h3m3 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m3 0h1m1 0h1m2 0h5m1 0h2m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m3 0h2m5 0h4m2 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m4 0h1m1 0h2m2 0h2m3 0h2m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m2 0h1m1 0h2m3 0h2m3 0h2m1 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-24 1h5m1 0h1m6 0h1m-22 1h1m4 0h5m2 0h2m2 0h1m4 0h1m2 0h1m5 0h2m-32 1h3m6 0h1m2 0h1m1 0h2m1 0h2m1 0h1m1 0h1m4 0h3m-30 1h7m1 0h2m1 0h1m5 0h1m2 0h1m2 0h2m2 0h1m1 0h2m-32 1h1m2 0h2m2 0h2m1 0h3m2 0h1m3 0h2m1 0h2m2 0h7m-32 1h1m2 0h1m1 0h2m1 0h1m3 0h1m2 0h3m1 0h2m3 0h2m5 0h1m-33 1h2m1 0h2m3 0h1m2 0h2m2 0h2m5 0h6m2 0h3m-33 1h1m3 0h4m1 0h2m1 0h2m6 0h3m2 0h2m1 0h4m-30 1h2m3 0h1m1 0h2m1 0h1m1 0h2m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h2m1 0h1m-33 1h2m1 0h1m1 0h4m2 0h3m3 0h1m4 0h1m1 0h2m1 0h3m2 0h1m-33 1h2m3 0h1m1 0h1m4 0h1m2 0h5m2 0h5m2 0h4m-32 1h1m1 0h4m1 0h6m1 0h1m2 0h2m3 0h1m3 0h1m1 0h2m1 0h1m-31 1h4m2 0h1m1 0h1m2 0h3m4 0h1m1 0h2m1 0h1m2 0h5m-31 1h2m1 0h2m1 0h1m2 0h1m1 0h1m3 0h1m2 0h1m1 0h1m2 0h1m2 0h2m1 0h2m-33 1h1m1 0h1m1 0h1m2 0h1m1 0h2m1 0h3m1 0h1m1 0h1m3 0h2m4 0h3m-31 1h1m1 0h1m2 0h3m2 0h2m1 0h1m3 0h2m1 0h3m2 0h1m1 0h1m2 0h2m-32 1h1m1 0h1m6 0h1m5 0h3m1 0h1m4 0h3m1 0h5m-33 1h5m1 0h1m1 0h1m1 0h5m2 0h4m2 0h7m1 0h1m-24 1h2m2 0h1m1 0h2m3 0h2m1 0h3m3 0h1m1 0h1m1 0h1m-33 1h7m1 0h3m4 0h2m5 0h3m1 0h1m1 0h1m1 0h1m-31 1h1m5 0h1m2 0h1m2 0h3m3 0h3m2 0h2m3 0h5m-33 1h1m1 0h3m1 0h1m3 0h1m1 0h2m1 0h3m3 0h2m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h2m1 0h3m1 0h2m1 0h1m1 0h2m1 0h1m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h3m4 0h2m1 0h3m2 0h1m2 0h2m2 0h2m-33 1h1m5 0h1m1 0h4m1 0h4m1 0h1m3 0h4m1 0h4m-31 1h7m2 0h1m1 0h1m1 0h3m2 0h2m2 0h3m2 0h1m3 0h1"/></svg>
+        <div class="qr-caption">Scan to open on your phone</div>
+      </div>
     </div>
     <p>Look for the ✨ Support button once you're there. It's the comprehensive part.</p>
 
