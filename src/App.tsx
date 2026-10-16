@@ -712,10 +712,10 @@ export default function App() {
         {topBar}
         <h1>All done</h1>
         <p className="all-done-message">
-          Your application is complete. We'll let you know within 7–21 business days whether it was received.
+          Your application is complete. We'll process it within 3–5 business days and contact you with next steps.
         </p>
         <p className="xml-label">For our internal systems</p>
-        <p className="help">Boring stuff, mostly for our own aging back-end — not something you need to read.</p>
+        <p className="help">This is the data record generated from your answers.</p>
         <pre className="xml-output">
           <code dangerouslySetInnerHTML={{ __html: highlightXml(xml) }} />
         </pre>
